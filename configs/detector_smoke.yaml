@@ -1,0 +1,8 @@
+# Repeated official still image: real detector, synthetic temporal sequence.
+camera_id: static-detector-smoke
+location_id: illustrative-only
+detector: yolo
+weights: data/yolo11n.pt
+synthetic: true
+max_frames: 20
+save_video: false

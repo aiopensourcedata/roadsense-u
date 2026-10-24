@@ -1,0 +1,11 @@
+RoadSense-U
+Copyright (c) 2026 Farid Eyvazov and RoadSense-U contributors.
+
+This research prototype is offered under GNU AGPL version 3 only; see LICENSE.
+No warranty of traffic-safety performance or suitability is provided.
+No affiliation or endorsement by cited researchers,
+dataset providers, OpenCV, Ultralytics or other dependency authors is implied.
+
+Third-party software, model weights and example media retain their own licenses.
+No pretrained weights, third-party footage or research datasets are included
+in the source release. See THIRD_PARTY_NOTICES.md and docs/DATASETS.md.

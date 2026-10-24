@@ -1,0 +1,17 @@
+name: Bug report
+description: Report a reproducible software failure. Use private reporting for vulnerabilities.
+body:
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and observed behavior
+      description: Include reproduction commands and a small synthetic example if possible. Do not attach secrets or personal footage.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment and validation
+      description: Python version, operating system, dependency versions and relevant redacted errors.
+    validations:
+      required: true
