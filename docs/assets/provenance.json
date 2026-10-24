@@ -1,0 +1,63 @@
+{
+  "timestamp_utc": "2026-10-24T17:51:34.525046+00:00",
+  "project_version": "0.1.0",
+  "python": "3.12.3",
+  "browser": "154.0.8037.92",
+  "location_id": "synthetic-e2e-703c93f6",
+  "synthetic": true,
+  "computed_alerts": 12,
+  "known_generated_agents_per_episode": 2,
+  "episodes": 4,
+  "cooldown_s": 0.75,
+  "checks": {
+    "authentication_validation_size_limit": true,
+    "video_motion_rules_http_submission": true,
+    "independent_postgresql_persistence": true,
+    "retrieval_and_idempotent_replay": true,
+    "synthetic_real_isolation": true,
+    "camera_statistics_and_exposure": true,
+    "offline_grouped_baseline_experiment": true,
+    "browser_dashboard_matches_postgresql": true,
+    "browser_provenance_filter": true,
+    "browser_event_evidence_and_metadata": true,
+    "browser_analytics": true,
+    "browser_processed_artifacts": true,
+    "browser_evaluation": true,
+    "browser_live_mjpeg_without_recording": true,
+    "no_browser_javascript_errors": true,
+    "browser_mobile_layout": true
+  },
+  "screenshots": [
+    {
+      "file": "overview.png",
+      "description": "Computed synthetic alerts retrieved from PostgreSQL and shown in the dashboard.",
+      "sha256": "07f501eebfdc12db6e11e111b0b8ad96167d76b46931d6a80453f5ffb8672423",
+      "synthetic": true
+    },
+    {
+      "file": "event-evidence.png",
+      "description": "Measured features and the heuristic explanation for a stored synthetic alert.",
+      "sha256": "2df2550af9c7822b8d4f56493fb9665efc862d5c5e01bfc6c1ac2d23c82c0e15",
+      "synthetic": true
+    },
+    {
+      "file": "location-analytics.png",
+      "description": "Synthetic camera counts and rates using explicitly supplied synthetic exposure.",
+      "sha256": "c8360773f9a1ac6f1eb0a95831d517983ab7c9a02706d0250c61a7334571fd38",
+      "synthetic": true
+    },
+    {
+      "file": "evaluation.png",
+      "description": "An actually executed offline synthetic benchmark, not real-world model validation.",
+      "sha256": "63a9f4ef9678e689924eab5dbc446e3efb62a698e5311742fd9887a89371455c",
+      "synthetic": true
+    },
+    {
+      "file": "live-preview.png",
+      "description": "Browser MJPEG preview of a currently processed, annotated synthetic video frame.",
+      "sha256": "6536cf73df1027db99a12adda1b6d33f627ff9f87c80692fcd1f503d3577de45",
+      "synthetic": true
+    }
+  ],
+  "limitations": "Synthetic scenarios and tabular benchmark only; no real-world safety validation. Browser screenshots do not include credentials or real footage."
+}

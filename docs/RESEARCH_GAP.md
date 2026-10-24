@@ -1,0 +1,48 @@
+# Research gap assessment — unverified
+
+## Research question
+
+Can causal trajectory features and measurement-aware abstention improve the detection of **labeled future traffic conflicts** at unseen fixed-camera locations, at a prespecified false-alert, latency and metadata budget, beyond matched geometric and calibrated classical baselines?
+
+Current status: working software and synthetic checks do not establish an affirmative answer. The integration itself is not a novelty claim.
+
+## Literature search methodology
+
+Targeted exploratory web review performed 2026-10-24. Queries covered camera traffic conflicts, monocular speed, TTC/PET, accident anticipation, uncertainty, cross-camera generalization, edge-cloud video analytics and federated traffic learning. Sources screened were original papers on arXiv/CVF/publishers, official dataset cards/repositories and vendor product descriptions. Reviewed titles/abstracts, available methods descriptions, dataset cards and access/license notices. This is **not a systematic review**, citation-chain coverage is incomplete, and competing methods were not reproduced. Search-result snippets alone cannot establish experimental superiority. Dates below are publication/submission dates rather than search-index crawl dates.
+
+## Closest existing approaches
+
+| Approach and date | Already accomplishes | Implication for RoadSense-U |
+|---|---|---|
+| [Saunier & Sayed, A feature-based tracking algorithm for vehicles in intersections, 2006](https://citeseerx.ist.psu.edu/document?doi=eab65c8dd053bcd78842d2e16a0707cb386227de&repid=rep1&type=pdf) | Intersection vehicle trajectories with handling of disrupted feature tracks; evaluated across several intersections. | Video trajectories and awareness of broken tracks are established ideas. |
+| [FHWA SSAM final report, June 2008](https://www.fhwa.dot.gov/publications/research/safety/08051/02.cfm) | Trajectory-based surrogate safety analysis, TTC/PET thresholds and conflict summaries using simulation trajectories. | Geometric conflicts, TTC and PET are established. Our disk assumptions differ from SSAM's footprint/trajectory processing; numerical outputs are not automatically interchangeable. |
+| [Sochor et al., Comprehensive Data Set for Automatic Single Camera Visual Speed Measurement, 2017 preprint / 2018 journal online publication](https://arxiv.org/abs/1702.06441) | Calibration/speed evaluation infrastructure and independent measurement references. [Official implementation](https://github.com/JakubSochor/BrnoCompSpeed). | A manual homography is a baseline, not a novel speed estimator. Reference speed error testing is still required. |
+| [Zhang et al., ByteTrack; submitted October 2021, revised April 2022](https://arxiv.org/abs/2110.06864) | Association including low-score detections to reduce fragmentation. | Using ByteTrack is reuse of existing tracking research. Input confidence must retain low-score boxes for its second association stage to be useful. |
+| [Bao, Yu & Kong, Uncertainty-based Traffic Accident Anticipation with Spatio-Temporal Relational Learning, ACM MM 2020](https://arxiv.org/abs/2008.00334) | Relational graph/recurrent features, Bayesian uncertainty, sequential accident scores and CCD. | Combining temporal relations and uncertainty for anticipation is already demonstrated in prior work; it cannot itself be our novelty. Fixed-camera calibration-aware selective prediction under matched site splits is a candidate study, not an established gap. |
+| [Yao et al., When, Where, and What?, submitted April 2020](https://arxiv.org/abs/2004.03044) and [DoTA journal paper, 2022](https://vision.soic.indiana.edu/papers/dota2022pami.pdf) | Spatial/temporal/categorical driving anomaly annotations; prediction inconsistency/future object localization as anomaly evidence. | Future trajectory reasoning for anomalies is established; moving-dashcam anomaly detection differs from fixed-camera pair conflict anticipation. |
+| [Zimmer et al., TUMTraf-V2X, CVPR 2024](https://openaccess.thecvf.com/content/CVPR2024/papers/Zimmer_TUMTraf_V2X_Cooperative_Perception_Dataset_CVPR_2024_paper.pdf) | Cooperative camera/LiDAR perception, track IDs and challenging road interactions. | Multi-camera infrastructure intelligence and occlusion mitigation already exist; a monocular metadata backend is not equivalent to cooperative perception. |
+| [Moura, Zhu & Zvitia, Nexar Dashcam Collision Prediction Dataset and Challenge, CVPR workshops June 2025](https://openaccess.thecvf.com/content/CVPR2025W/WAD/papers/Moura_Nexar_Dashcam_Collision_Prediction_Dataset_and_Challenge_CVPRW_2025_paper.pdf) | A benchmark for pre-event collision/near-collision anticipation with time-sensitive evaluation. | Relevant temporal evaluation, but positive labels combine outcomes and moving cameras require a different geometry model. |
+| [Pradeep Kumar & Kant, TU-DAT, Sensors, May 22 2025](https://www.mdpi.com/1424-8220/25/11/3259) | Real/simulated anomalous traffic video and spatiotemporal annotation framework. | Roadside anomaly reasoning already has public research. Machine-assisted boxes require independent quality checks. |
+| [Orlova et al., Simplifying Traffic Anomaly Detection with Video Foundation Models, ICCV workshops 2025](https://openaccess.thecvf.com/content/ICCV2025W/2COOOL/papers/Orlova_Simplifying_Traffic_Anomaly_Detection_with_Video_Foundation_Models_ICCVW_2025_paper.pdf) | Simple pretrained encoders and domain-adaptive pretraining for driving anomalies. | Strong generic pretrained baselines can explain gains attributed to architectural complexity; include them before broad superiority claims. |
+| [Canel et al., FilterForward, SysML 2019 / May 2019 preprint](https://arxiv.org/abs/1905.13536) | Edge filtering to send selected video content to cloud services under bandwidth constraints. | Selective communication is existing work; metadata-only conflict summaries need matched quality/bandwidth comparisons. |
+| [Distributed Video Analytics Architecture Based on Edge-Computing and Federated Learning, 2019](https://doi.org/10.1109/DASC/PiCom/CBDCom/CyberSciTech.2019.00047) | Distributed object detection and federated updates with a road-surveillance use case. | Edge/federated perception is not a new concept. |
+| [Arya et al., TrafficFab, preprint September 24 2026](https://arxiv.org/abs/2609.29223) | Edge-cloud traffic analytics, forecasting and federated detector adaptation in a heterogeneous testbed. | Recent systems work further limits any broad edge/cloud/FL novelty claim; its reported scale is not independently verified here. |
+| [Transoft, TrafxSAFE Next announcement, January 8 2024](https://www.transoftsolutions.com/emea/news/trafxsafe-next-launches-at-trb-2024/) | Vendor-described video/near-miss safety analysis and crash estimation products. | A traffic safety dashboard or near-miss analytics is not unique. Product claims are not independent experimental evidence. |
+
+## Candidate research gaps and proposed contribution
+
+Candidate contribution: a reproducible fixed-camera experiment quantifying the **joint** effect of calibration validity, tracking quality, uncertainty abstention and causal behavior features on cross-location warning quality and metadata cost. Publish explicit assumptions, event matching, failure modes and negative results. The current implementation supplies infrastructure and interpretable baselines for such a study; it does not demonstrate a new algorithm.
+
+The gap remains unverified because prior work may already evaluate the same combination. Expand backward/forward citations around uncertainty anticipation, selective risk prediction and cross-site surrogate safety analysis. Check external test camera identities and duplicate source videos, rather than assuming a benchmark's official clip split proves geographic generalization.
+
+## Competing explanations and limitations
+
+Apparent improvement may reflect better detection, easier camera geometry, heavier compute, different class prevalence, label timing, leaked near-duplicate clips, event sampling, or greater abstention rather than better anticipation. Pixel proximity is perspective dependent. Constant velocity fails on turning/braking; homography fails on moving cameras and nonplanar surfaces. Surrogate conflict measures need not correlate with actual crashes. Annotation quality and exposure uncertainty can dominate model differences. Vendor comparisons may be impossible without comparable outputs and labels.
+
+## Experiments required to establish novelty
+
+Preregister event semantics, geography splits and false-alert budget; reproduce closest available uncertainty/temporal methods on the same curated video; compare centralized and local geometric/classical models; test independent held-out sites; ablate calibration, quality, temporal context and abstention; report event/location-cluster uncertainty, coverage, warning delay, exposure, latency and network usage. Repeat on external data with documented legal access. Only then consider a temporal or federated extension under matched budgets.
+
+## Claims that cannot yet be justified
+
+No claim of novel uncertainty-aware anticipation, reliable crash prediction, state-of-the-art accuracy, improved cross-location generalization, accurate physical speed from arbitrary video, proven hotspots/causation, privacy guarantees from FL, lower real cloud bills, or safety certification. No real-world performance experiments or competitor reproductions have been completed.

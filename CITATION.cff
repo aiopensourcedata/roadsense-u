@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use this research prototype, cite the software version and the methods/datasets you actually use."
+type: software
+title: "RoadSense-U: Cloud-Connected Traffic Risk Intelligence"
+version: 0.1.0
+repository-code: "https://github.com/aiopensourcedata/roadsense-u"
+url: "https://github.com/aiopensourcedata/roadsense-u"
+license: AGPL-3.0-only
+authors:
+  - family-names: Eyvazov
+    given-names: Farid
+abstract: "Research software for camera-based trajectories, geometric interaction estimates, event metadata delivery and reproducible baseline evaluation. No real-world safety performance is established."
+keywords:
+  - traffic conflicts
+  - computer vision
+  - research prototype

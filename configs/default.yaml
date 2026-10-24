@@ -1,0 +1,16 @@
+camera_id: camera-local
+location_id: location-local
+detector: yolo
+weights: data/yolo11n.pt
+device: cpu
+confidence: 0.1
+horizon_s: 3.0
+proximity_px: 60.0
+proximity_m: 3.0
+min_quality: 0.5
+alert_threshold: 0.45
+cooldown_s: 3.0
+max_frames: 0
+save_video: false
+synthetic: false
+calibration: null
