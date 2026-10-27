@@ -135,3 +135,84 @@ def test_reconnect_resets_alert_cooldown_and_scopes_reused_ids(tmp_path, monkeyp
     assert {e.tracking_epoch for e in events} == {0, 1}
     assert detector.resets == 1 and report["tracking_epochs"] == 2
     assert report["track_segments_not_validated_traffic_volume"] == 4
+
+
+def test_identity_abstention_blocks_duplicate_pair_but_keeps_tracks(tmp_path, monkeypatch):
+    import csv
+
+    import numpy as np
+
+    from roadsense.camera.video_reader import Frame
+    from roadsense.detection.tracker import Detection
+
+    class Capture:
+        def release(self):
+            pass
+
+    class Reader:
+        fps = 20
+        live = False
+
+        def __init__(self, source):
+            self.cap = Capture()
+
+        def __iter__(self):
+            for i in range(40):
+                yield Frame(i, i / 20, np.zeros((100, 100, 3), np.uint8), "test")
+
+    class Detector:
+        def detect(self, image, timestamp):
+            x = 10 + 10 * timestamp
+            offset = 0.2 - 0.1 * timestamp
+            return [
+                Detection((x, 10, x + 40, 30), "car", 1.0, 1),
+                Detection((x + offset, 10, x + offset + 40, 30), "car", 1.0, 2),
+            ]
+
+    source = tmp_path / "source.avi"
+    source.touch()
+    monkeypatch.setattr("roadsense.pipeline.VideoReader", Reader)
+    baseline_dir, guarded_dir = tmp_path / "baseline", tmp_path / "guarded"
+    baseline = run(
+        str(source),
+        str(baseline_dir),
+        PipelineConfig(pair_identity={"enabled": False}),
+        detector_override=Detector(),
+    )
+    guarded = run(str(source), str(guarded_dir), PipelineConfig(), detector_override=Detector())
+    assert baseline["events"] >= 1 and guarded["events"] == 0
+    assert guarded["identity_ambiguity_abstentions"] > 0
+    assert list(csv.DictReader((baseline_dir / "trajectories.csv").open())) == list(
+        csv.DictReader((guarded_dir / "trajectories.csv").open())
+    )
+    assessment = json.loads((baseline_dir / "event_evaluation.jsonl").read_text().splitlines()[0])
+    assert not assessment["future_observation_complete"]
+    assert assessment["reason"] == "insufficient_future_observation"
+    assert len(list(csv.DictReader((guarded_dir / "frame_timestamps.csv").open()))) == 40
+
+
+def test_cached_ablation_preserves_distinct_synthetic_interaction(tmp_path):
+    import runpy
+
+    subprocess.run(
+        [sys.executable, "scripts/generate_synthetic_data.py", "--output", str(tmp_path / "data")], check=True
+    )
+    reference = tmp_path / "reference"
+    report = run(
+        str(tmp_path / "data/crossing.avi"),
+        str(reference),
+        PipelineConfig(detector="synthetic", synthetic=True, pair_identity={"enabled": False}),
+    )
+    compare = runpy.run_path("scripts/compare_pair_identity.py")["compare"]
+    result = compare(reference, tmp_path / "comparison", reference / "frame_timestamps.csv")
+    assert result["baseline_alerts_reproduced"]
+    assert result["identity_config"]["enabled"]
+    assert len(result["alerts"]["guarded"]) == report["events"] >= 1
+    assert result["counts"]["guarded_accepted"] == result["counts"]["baseline_accepted"]
+    # A reference with inconsistent alert values must not produce a success report.
+    event_path = reference / "events.jsonl"
+    events = [json.loads(line) for line in event_path.read_text().splitlines()]
+    events[0]["risk_score"] /= 2
+    event_path.write_text("\n".join(json.dumps(x) for x in events) + "\n")
+    with pytest.raises(ValueError, match="reproduce"):
+        compare(reference, tmp_path / "invalid-comparison")

@@ -24,6 +24,7 @@ if __name__ == "__main__":
     predictions = model.predict(frame)
     events = event_table(frame, predictions)
     result = metrics(events.label, events.score, a.threshold)
+    result["observation_coverage"] = frame.attrs["observation_coverage"]
     result["early_warning"] = early_warning(frame, predictions, a.threshold)
     Path(a.output).parent.mkdir(parents=True, exist_ok=True)
     Path(a.output).write_text(json.dumps(result, indent=2, allow_nan=False))

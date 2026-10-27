@@ -14,3 +14,8 @@ max_frames: 0
 save_video: false
 synthetic: false
 calibration: null
+
+# Identity ambiguity is separate from the unchanged geometric risk thresholds.
+pair_identity:
+  enabled: true
+observation_max_gap_s: 0.5

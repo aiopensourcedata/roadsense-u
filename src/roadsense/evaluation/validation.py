@@ -21,6 +21,47 @@ def load_observations(path: str) -> pd.DataFrame:
     ]
     if any(key not in frame for key in required) or frame.empty:
         raise ValueError(f"A nonempty table with required columns is needed: {required}")
+    provenance = (
+        frame.synthetic.astype(str).str.lower().map({"true": True, "false": False, "1": True, "0": False})
+    )
+    if provenance.isna().any():
+        raise ValueError("Synthetic provenance must be explicit true/false")
+    if provenance.nunique() != 1:
+        raise ValueError("Do not pool synthetic and real observations in one benchmark")
+    frame["synthetic"] = provenance
+    coverage = {
+        "provided": "future_observation_complete" in frame,
+        "input_rows": len(frame),
+        "excluded_rows": 0,
+        "excluded_rows_by_location": {},
+        "excluded_reasons": {},
+    }
+    if coverage["provided"]:
+        complete = (
+            frame.future_observation_complete.astype(str)
+            .str.lower()
+            .map({"true": True, "false": False, "1": True, "0": False})
+        )
+        if complete.isna().any():
+            raise ValueError("Future observation coverage must be explicit true/false")
+        coverage["excluded_rows"] = int((~complete).sum())
+        coverage["excluded_rows_by_location"] = (
+            frame.loc[~complete, "location_id"].fillna("missing").value_counts().to_dict()
+        )
+        if "future_observation_reason" in frame:
+            coverage["excluded_reasons"] = (
+                frame.loc[~complete, "future_observation_reason"]
+                .fillna("unspecified")
+                .value_counts()
+                .to_dict()
+            )
+        frame = frame.loc[complete].copy()
+        if frame.empty:
+            raise ValueError("No observations have a complete future horizon")
+    elif not bool(provenance.iloc[0]):
+        raise ValueError("Real observations require explicit future_observation_complete coverage")
+    coverage["retained_rows"] = len(frame)
+    frame.attrs["observation_coverage"] = coverage
     for key in ("event_id", "clip_id", "location_id"):
         if frame[key].isna().any() or frame[key].str.strip().eq("").any():
             raise ValueError(f"Missing or empty {key}")
@@ -45,14 +86,6 @@ def load_observations(path: str) -> pd.DataFrame:
         raise ValueError("Positive target must occur in (prediction_time, prediction_time+3 seconds]")
     if lead[~positive].between(0, 3, inclusive="right").any():
         raise ValueError("Negative target contradicts an event inside the prediction horizon")
-    provenance = (
-        frame.synthetic.astype(str).str.lower().map({"true": True, "false": False, "1": True, "0": False})
-    )
-    if provenance.isna().any():
-        raise ValueError("Synthetic provenance must be explicit true/false")
-    if provenance.nunique() != 1:
-        raise ValueError("Do not pool synthetic and real observations in one benchmark")
-    frame["synthetic"] = provenance
     if "units" in frame and not frame.units.eq("px").all():
         raise ValueError("The current baseline requires pixel-space features; metric pooling is unsupported")
     return frame

@@ -23,9 +23,11 @@ from roadsense.cloud.client import EventClient
 from roadsense.cloud.schemas import TrafficEvent
 from roadsense.config import PipelineConfig
 from roadsense.detection.detector import SyntheticDetector, YoloByteTrack
+from roadsense.detection.pair_identity import PairIdentityGuard
+from roadsense.evaluation.coverage import ObservationCoverage
 from roadsense.motion.features import pair_features
 from roadsense.motion.trajectories import Trajectories
-from roadsense.risk.rules import estimate
+from roadsense.risk.rules import RiskEstimate, estimate
 
 log = logging.getLogger(__name__)
 
@@ -61,6 +63,9 @@ def run(
         reader.cap.release()
         raise
     motion, session_id = Trajectories(), uuid4()
+    identity = PairIdentityGuard(config.pair_identity)
+    coverage = ObservationCoverage(config.observation_max_gap_s)
+    identity_abstentions = 0
     origin = video_start or datetime.now(timezone.utc)
     if origin.tzinfo is None:
         reader.cap.release()
@@ -103,20 +108,30 @@ def run(
             (destination / "trajectories.csv").open("w", newline="") as tf,
             (destination / "events.jsonl").open("w") as ef,
             (destination / "features.jsonl").open("w") as ff,
+            (destination / "frame_timestamps.csv").open("w", newline="") as ft,
         ):
             csv_writer = csv.DictWriter(tf, fieldnames=fields)
             csv_writer.writeheader()
+            time_writer = csv.writer(ft)
+            time_writer.writerow(["frame", "timestamp_s", "timestamp_source", "discontinuity"])
             for frame in reader:
                 tick = time.perf_counter()
                 if first_timestamp is None:
                     first_timestamp = frame.timestamp
                 last_timestamp = frame.timestamp
+                coverage.observe(frame.timestamp, frame.discontinuity)
+                time_writer.writerow(
+                    [frame.index, frame.timestamp, frame.timestamp_source, frame.discontinuity]
+                )
                 if frame.discontinuity:
                     motion.clear()
+                    identity.clear()
                     detector.reset()
                     last_events.clear()
                     tracking_epoch += 1
+                identity.begin_frame(frame.timestamp)
                 detections = detector.detect(frame.image, frame.timestamp)
+                detections_by_id = {d.track_id: d for d in detections if d.track_id is not None}
                 current = []
                 for detection in detections:
                     if detection.track_id is None:
@@ -174,6 +189,7 @@ def run(
                         if len(path) > 1:
                             cv2.polylines(frame.image, [path.astype("int32")], False, (0, 255, 255), 2)
                 highest = 0.0
+                frame_scored = frame_abstained = 0
                 for (a, class_a), (b, class_b) in combinations(current, 2):
                     if a.units != b.units:
                         continue
@@ -185,7 +201,16 @@ def run(
                     )
                     # Unknown physical footprints: pipeline intentionally leaves disk TTC undefined.
                     proximity = config.proximity_m if a.units == "m" else config.proximity_px
-                    risk = estimate(features, config.horizon_s, proximity, config.min_quality)
+                    assessment = identity.assess(
+                        detections_by_id[a.track_id], detections_by_id[b.track_id], frame.timestamp
+                    )
+                    if assessment.ambiguous:
+                        risk = RiskEstimate(None, True, ["ambiguous_pair_identity"])
+                        identity_abstentions += 1
+                    else:
+                        risk = estimate(features, config.horizon_s, proximity, config.min_quality)
+                    if config.pair_identity.enabled:
+                        risk.model_version = "rules-0.1+identity-0.1"
                     ff.write(
                         json.dumps(
                             {
@@ -197,6 +222,7 @@ def run(
                                 "abstained": risk.abstained,
                                 "reasons": risk.reasons,
                                 "synthetic": config.synthetic,
+                                "pair_identity": assessment.measurements,
                             },
                             allow_nan=False,
                         )
@@ -204,7 +230,9 @@ def run(
                     )
                     if risk.abstained:
                         abstained += 1
+                        frame_abstained += 1
                         continue
+                    frame_scored += 1
                     highest = max(highest, risk.score)
                     pair = tuple(sorted([a.track_id, b.track_id]))
                     if (
@@ -246,9 +274,8 @@ def run(
                     k: v for k, v in last_events.items() if frame.timestamp - v < 2 * config.cooldown_s
                 }
                 if config.save_video or preview is not None:
-                    title = (
-                        f"{'SYNTHETIC | ' if config.synthetic else ''}Research heuristic max={highest:.2f}"
-                    )
+                    value = f"{highest:.2f}" if frame_scored else "unavailable"
+                    title = f"{'SYNTHETIC | ' if config.synthetic else ''}Research heuristic max={value} | abstained={frame_abstained}"
                     cv2.rectangle(frame.image, (0, 0), (frame.image.shape[1], 46), (35, 25, 15), -1)
                     cv2.putText(frame.image, title, (10, 29), 0, 0.6, (255, 255, 255), 2)
                     if config.save_video:
@@ -277,6 +304,17 @@ def run(
         reader.cap.release()
         if writer:
             writer.release()
+    coverage_counts = {"complete": 0, "censored": 0}
+    with (
+        (destination / "events.jsonl").open() as events_file,
+        (destination / "event_evaluation.jsonl").open("w") as evaluation_file,
+    ):
+        for line in events_file:
+            event_data = json.loads(line)
+            assessment = coverage.assess(event_data["video_time_s"], config.horizon_s)
+            assessment["event_id"] = event_data["event_id"]
+            coverage_counts["complete" if assessment["future_observation_complete"] else "censored"] += 1
+            evaluation_file.write(json.dumps(assessment, allow_nan=False) + "\n")
     elapsed = time.perf_counter() - started
     report = {
         "session_id": str(session_id),
@@ -291,6 +329,12 @@ def run(
         "frames": frames,
         "events": emitted,
         "abstained_pair_observations": abstained,
+        "identity_ambiguity_abstentions": identity_abstentions,
+        "observation_coverage": {
+            "max_gap_s": config.observation_max_gap_s,
+            "segments": len(coverage.segments),
+            "event_horizons": coverage_counts,
+        },
         "submission_failures": submission_failures,
         "tracking_epochs": tracking_epoch + 1,
         "track_segments_not_validated_traffic_volume": track_segments,

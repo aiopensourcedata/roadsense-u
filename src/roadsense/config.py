@@ -9,6 +9,28 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+class PairIdentityConfig(BaseModel):
+    """Conservative ambiguity thresholds, separate from geometric risk thresholds."""
+
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    enabled: bool = True
+    min_iou: float = Field(default=0.5, gt=0, le=1)
+    max_center_separation: float = Field(default=0.2, gt=0)
+    window_s: float = Field(default=0.5, gt=0)
+    min_span_s: float = Field(default=0.2, gt=0)
+    min_samples: int = Field(default=4, ge=3)
+    min_overlap_fraction: float = Field(default=0.8, gt=0, le=1)
+    max_offset_drift_per_s: float = Field(default=0.25, gt=0)
+    max_offset_residual: float = Field(default=0.05, gt=0)
+    max_gap_s: float = Field(default=0.2, gt=0)
+
+    @model_validator(mode="after")
+    def consistent_window(self):
+        if self.min_span_s > self.window_s or self.max_gap_s > self.window_s:
+            raise ValueError("Identity span and gap cannot exceed its history window")
+        return self
+
+
 class PipelineConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     camera_id: str = Field(default="camera-local", min_length=1, max_length=100)
@@ -27,6 +49,8 @@ class PipelineConfig(BaseModel):
     save_video: bool = False
     synthetic: bool = False
     calibration: str | None = None
+    pair_identity: PairIdentityConfig = Field(default_factory=PairIdentityConfig)
+    observation_max_gap_s: float = Field(default=0.5, gt=0)
 
     @model_validator(mode="after")
     def synthetic_guard(self):

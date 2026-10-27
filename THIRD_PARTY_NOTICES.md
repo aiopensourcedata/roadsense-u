@@ -29,3 +29,7 @@ The README gallery consists of actual browser screenshots of this application's 
 The explicit weight downloader retrieves one official YOLO11n artifact, records its source and verifies the pinned SHA256 from the initially reviewed upstream download. The pin is not an independent author signature. Upstream licensing applies to weights. The detector smoke helper retrieves an official example image only on request; the generated repeated-image fixture is not a motion benchmark and is not included in release artifacts.
 
 Dataset access and publication do not imply redistribution permission. Nexar, TU-DAT, TUMTraf-V2X, BrnoCompSpeed and DoTA have separate terms and/or unresolved footage permissions: see docs/DATASETS.md. Literature citations identify prior work and do not imply this project has reproduced it or obtained rights to redistribute its assets.
+
+The Bellevue regression fixture contains numeric bounding-box measurements and a single-reviewer object-distinctness assessment from local testing, with a source checksum. It includes no frames, clips, model weights, or independently validated conflict labels. Source-video redistribution rights have not been verified; the video and review stills remain outside the release.
+
+Optional contact-sheet export uses Matplotlib, distributed under its own PSF-derived Matplotlib license (see the installed distribution's license text). It is an optional review dependency, not a license for source videos.

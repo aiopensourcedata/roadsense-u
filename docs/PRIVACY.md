@@ -27,3 +27,5 @@ A shared API key is a basic prototype control, not tenant isolation. No certifie
 ## Opt-in documentation screenshots
 
 The browser E2E command can explicitly capture the generated synthetic scene and its dashboard outputs with `--screenshots docs/assets`. These reviewed synthetic-only PNGs and their provenance manifest are intentionally retained in the source documentation. They contain no identifying footage, source credentials or pretrained assets. The option is separate from raw-video recording and does not enable frame uploads. E2E-generated metadata remains flagged synthetic and follows database retention.
+
+Local annotation preparation references the original video in place. `--write-review-frames` explicitly retains sampled stills/contact sheets under ignored outputs; no clips or frames are uploaded. Browser review notes use local storage and CSV export. Keep filled sheets, source paths and real-media review images private unless redistribution permission is independently verified.

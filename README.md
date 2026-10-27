@@ -108,7 +108,9 @@ Measurements remain in pixels unless a valid calibration is supplied. TTC is una
 | File | Contents |
 |---|---|
 | `trajectories.csv` | Timestamp, class, track ID/epoch, box, position, motion, units, and quality flags. |
-| `features.jsonl` | Pairwise measurements and abstention reasons. |
+| `features.jsonl` | Pairwise measurements, identity ambiguity evidence, and abstention reasons. |
+| `frame_timestamps.csv` | Complete processed-frame timeline, including frames without detections. |
+| `event_evaluation.jsonl` | Retrospective future-horizon coverage; gaps and truncated endings are censored. |
 | `events.jsonl` | Emitted events with UUIDs for idempotent replay. |
 | `report.json` | Configuration, counts, timing, resource use, and attempted metadata-body bytes. |
 | `annotated.mp4` | Recorded only with `--save-video`. |
@@ -118,6 +120,8 @@ If submission fails, replay retained metadata:
 ```bash
 python scripts/replay_events.py outputs/demo-01/events.jsonl
 ```
+
+The [identity and coverage guide](docs/IDENTITY_AND_COVERAGE.md) explains the causal ambiguity check, its limits, and gap-aware evaluation. Real-data baseline CSVs require explicit future-observation coverage; missing outcomes must not be labeled as negatives.
 
 ## Camera and location analytics
 
@@ -161,6 +165,8 @@ python scripts/run_e2e.py
 The browser suite checks computed video events against an independent PostgreSQL query, authentication, malformed requests, size limits, duplicate replay, synthetic/real isolation, exposure normalization, dashboard controls, mobile layout, and live MJPEG. Reports go to `outputs/e2e-*/results.json`.
 
 Unit tests need no camera, Docker, browser, or model weights. Browser tests need running services and optional extras. Use `--screenshots docs/assets` to refresh the gallery and its hashes. See [E2E testing](docs/E2E_TESTING.md) for details.
+
+For local visual annotation, see the [review protocol](docs/ANNOTATION_PROTOCOL.md). The preparation tool selects continuous windows without outcome labels and creates a score-hidden review page; first-pass notes are not validated ground truth.
 
 ## Development
 

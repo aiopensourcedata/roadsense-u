@@ -43,6 +43,7 @@ def benchmark(csv_path: str, output: str, split_mode: str = "location", seed: in
     model.used_location_ids = set(seen.location_id.astype(str)) if split_mode == "location" else set()
     report = {
         "seed": seed,
+        "observation_coverage": frame.attrs["observation_coverage"],
         "split_mode": split_mode,
         "synthetic": bool(frame.synthetic.astype(str).str.lower().eq("true").all()),
         "target": "labeled conflict in next 3 seconds, pre-event information only",
