@@ -21,11 +21,16 @@ class Frame:
 
 
 class VideoReader:
-    def __init__(self, source: int | str, retries: int = 3):
+    def __init__(self, source: int | str, retries: int = 3, start_frame: int = 0):
         if retries < 0:
             raise ValueError("Reconnect retries cannot be negative")
         self.source, self.retries = source, retries
         self.live = isinstance(source, int) or str(source).startswith(("http://", "https://", "rtsp://"))
+        if isinstance(start_frame, bool) or not isinstance(start_frame, int) or start_frame < 0:
+            raise ValueError("Start frame must be a nonnegative integer")
+        if self.live and start_frame:
+            raise ValueError("Start frame is available only for prerecorded files")
+        self.start_frame = start_frame
         self.cap = self._open()
         self.fps = float(self.cap.get(cv2.CAP_PROP_FPS))
         if not self.live and (not np.isfinite(self.fps) or self.fps <= 0):
@@ -62,6 +67,8 @@ class VideoReader:
                         count = self.cap.get(cv2.CAP_PROP_FRAME_COUNT)
                         if np.isfinite(count) and count > index:
                             raise RuntimeError(f"Video decoding interrupted at frame {index} of {count:.0f}")
+                        if index <= self.start_frame:
+                            raise ValueError("Start frame is beyond the decoded video")
                         break
                     failures += 1
                     if failures > self.retries:
@@ -87,7 +94,10 @@ class VideoReader:
                     )
                     if timestamp <= previous:
                         timestamp, origin = previous + 1 / self.fps, "frame_rate_fallback"
-                yield Frame(index, timestamp, image, origin, discontinuity)
+                # Decode sequentially rather than seek: variable-rate sources can
+                # otherwise return a different frame or timestamp than requested.
+                if index >= self.start_frame:
+                    yield Frame(index, timestamp, image, origin, discontinuity)
                 previous, index, discontinuity = timestamp, index + 1, False
         finally:
             self.cap.release()

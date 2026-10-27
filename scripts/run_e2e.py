@@ -186,8 +186,23 @@ def main() -> None:
                 )
             ).to_be_visible()
             metrics = page.locator('[data-testid="stMetric"]')
-            if (metrics.nth(0).inner_text().splitlines()[-1]).replace(",", "") != str(len(stored)):
-                raise AssertionError("Dashboard count does not match independently verified PostgreSQL rows")
+            # Streamlit streams the metric label before its value. Wait for the
+            # independently verified count, rather than reading an intermediate DOM.
+            count_value = metrics.nth(0).locator('[data-testid="stMetricValue"]')
+            try:
+                expect(count_value).to_have_text(f"{len(stored):,}", timeout=30000)
+            except AssertionError:
+                (directory / "dashboard-count-failure.json").write_text(
+                    json.dumps(
+                        {
+                            "expected_count": len(stored),
+                            "rendered_count": count_value.inner_text(),
+                            "synthetic_location": location,
+                        },
+                        indent=2,
+                    )
+                )
+                raise
             checks["browser_dashboard_matches_postgresql"] = True
 
             def capture(name: str) -> None:

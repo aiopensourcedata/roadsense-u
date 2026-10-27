@@ -18,6 +18,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from roadsense.cloud.schemas import TrafficEvent
 from roadsense.evaluation.coverage import ObservationCoverage
 from roadsense.evaluation.review import sample_review_windows
 
@@ -42,7 +43,9 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("video", type=Path)
     p.add_argument("--timestamps", type=Path, required=True, help="ffprobe frame JSON from the same source")
-    p.add_argument("--comparison", type=Path, required=True)
+    context_input = p.add_mutually_exclusive_group(required=True)
+    context_input.add_argument("--comparison", type=Path, help="Cached identity-ablation comparison JSON")
+    context_input.add_argument("--events", type=Path, help="Actual pipeline events.jsonl from this source")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--count", type=int, default=12)
     p.add_argument("--seed", type=int, default=42)
@@ -61,19 +64,30 @@ def main() -> None:
     coverage = ObservationCoverage()
     for t in times:
         coverage.observe(t)
-    comparison = json.loads(args.comparison.read_text())
-    if "synthetic" in comparison and bool(comparison["synthetic"]) != args.synthetic:
-        p.error("Video and comparison synthetic provenance must match")
-    alerts = comparison["alerts"]["guarded"]
-    withheld = [
-        x
-        for x in comparison["alerts"]["baseline"]
-        if not any(
-            abs(x["timestamp_s"] - y["timestamp_s"]) < 1e-8
-            and sorted(x["track_ids"]) == sorted(y["track_ids"])
-            for y in alerts
-        )
-    ]
+    context_path = args.events or args.comparison
+    if args.events:
+        events = [TrafficEvent.model_validate_json(line) for line in args.events.read_text().splitlines()]
+        if any(e.synthetic != args.synthetic for e in events):
+            p.error("Video and event synthetic provenance must match")
+        alerts = [
+            {"timestamp_s": e.video_time_s, "track_ids": e.track_ids, "heuristic_score": e.risk_score}
+            for e in events
+        ]
+        withheld = []
+    else:
+        comparison = json.loads(args.comparison.read_text())
+        if "synthetic" in comparison and bool(comparison["synthetic"]) != args.synthetic:
+            p.error("Video and comparison synthetic provenance must match")
+        alerts = comparison["alerts"]["guarded"]
+        withheld = [
+            x
+            for x in comparison["alerts"]["baseline"]
+            if not any(
+                abs(x["timestamp_s"] - y["timestamp_s"]) < 1e-8
+                and sorted(x["track_ids"]) == sorted(y["track_ids"])
+                for y in alerts
+            )
+        ]
     known = alerts + withheld
     excluded = [(max(0, x["timestamp_s"] - 2), x["timestamp_s"] + 3.1) for x in known]
     extra = sample_review_windows(times, excluded, args.count, args.seed)
@@ -114,6 +128,8 @@ def main() -> None:
         "source_file": args.video.name,
         "synthetic": args.synthetic,
         "source_sha256": digest,
+        "context_source_kind": "recorded_events" if args.events else "identity_comparison",
+        "context_source_sha256": hashlib.sha256(context_path.read_bytes()).hexdigest(),
         "seed": args.seed,
         "max_gap_s": 0.5,
         "additional_windows": args.count,
@@ -200,13 +216,18 @@ def main() -> None:
 <textarea id="notes" placeholder="Describe distinct users, maneuvers, occlusion, contact, timing and uncertainty. Do not infer physical speed from pixels."></textarea><button id="save">Save this window locally</button>
 <p id="saved"></p><details><summary>Sampled frames (2 Hz)</summary><img id="sheet" alt="Sampled source frames"></details>
 <script>const windows=DATA;const selector=document.getElementById('windows'),video=document.getElementById('video');const key='roadsense-review-SHA';let answers=JSON.parse(localStorage.getItem(key)||'{}');
-function current(){return windows[Number(selector.value)]}function load(){let w=current(),a=answers[w.window_id]||{};document.getElementById('status').textContent=`${w.window_id}: ${w.start_s.toFixed(3)}–${w.end_s.toFixed(3)}s; prediction t=${w.prediction_time_s.toFixed(3)}s; future footage ${w.future_observation_complete?'meets timestamp continuity policy':'CENSORED — do not label negative'}`;for(let f of ['label','visibility','notes'])document.getElementById(f).value=a[f]||'';document.getElementById('sheet').src=w.window_id+'.jpg';document.getElementById('saved').textContent='';}
+function current(){return windows[Number(selector.value)]}function load(){let w=current(),a=answers[w.window_id]||{};document.getElementById('status').textContent=`${w.window_id}: ${w.start_s.toFixed(3)}–${w.end_s.toFixed(3)}s; prediction t=${w.prediction_time_s.toFixed(3)}s; future footage ${w.future_observation_complete?'meets timestamp continuity policy':'CENSORED — do not label negative'}`;for(let f of ['label','visibility','notes'])document.getElementById(f).value=a[f]||'';let sheet=document.getElementById('sheet');if(sheet)sheet.src=w.window_id+'.jpg';document.getElementById('saved').textContent='';}
 selector.onchange=load;document.getElementById('replay').onclick=()=>{video.currentTime=current().start_s;video.play().catch(()=>{})};video.ontimeupdate=()=>{if(video.currentTime>=current().end_s)video.pause()};
 document.getElementById('save').onclick=()=>{let w=current(),label=document.getElementById('label').value;if(!w.future_observation_complete&&label!==''){alert('This horizon is censored. Leave its conflict label unresolved.');return}answers[w.window_id]={label,visibility:document.getElementById('visibility').value,notes:document.getElementById('notes').value,reviewer_id:document.getElementById('reviewer').value};localStorage.setItem(key,JSON.stringify(answers));document.getElementById('saved').textContent='Saved in this browser only.'};
 function quote(x){let s=String(x??'');if(/^[=+@-]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"'}document.getElementById('export').onclick=()=>{let rows=[['window_id','prediction_time_s','future_observation_complete','provisional_conflict_label','visibility','notes','reviewer_id','adjudicated_label']];for(let w of windows){let a=answers[w.window_id]||{};rows.push([w.window_id,w.prediction_time_s,w.future_observation_complete,a.label||'',a.visibility||'',a.notes||'',a.reviewer_id||'',''])}let link=document.createElement('a');link.href=URL.createObjectURL(new Blob([rows.map(r=>r.map(quote).join(',')).join('\\n')],{type:'text/csv'}));link.download='my-review.csv';link.click();URL.revokeObjectURL(link.href)};load();</script></html>"""
     page = (
         page.replace("OPTIONS", items).replace("SOURCE", source).replace("DATA", data).replace("SHA", digest)
     )
+    if not args.write_review_frames:
+        page = page.replace(
+            '<details><summary>Sampled frames (2 Hz)</summary><img id="sheet" alt="Sampled source frames"></details>',
+            "<p><small>Sampled frames were not exported. Use the source video controls.</small></p>",
+        )
     if args.synthetic:
         page = page.replace(
             "<h1>Local interaction review</h1>",

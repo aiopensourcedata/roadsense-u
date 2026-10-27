@@ -26,6 +26,10 @@ def main(default_source=None):
     )
     parser.add_argument("--preview-port", type=int, default=8765)
     parser.add_argument("--max-frames", type=int)
+    parser.add_argument("--inference-size", type=int, help="YOLO size, multiple of 32 (default 640)")
+    parser.add_argument(
+        "--start-frame", type=int, help="Sequentially skip source frames; preserve original media timestamps"
+    )
     parser.add_argument(
         "--video-start", type=datetime.fromisoformat, help="Capture start ISO8601 with timezone"
     )
@@ -39,6 +43,10 @@ def main(default_source=None):
         cfg.update(synthetic=True, detector="synthetic")
     if args.max_frames is not None:
         cfg["max_frames"] = args.max_frames
+    if args.inference_size is not None:
+        cfg["inference_size"] = args.inference_size
+    if args.start_frame is not None:
+        cfg["start_frame"] = args.start_frame
     client = None
     if args.submit:
         settings = Settings()

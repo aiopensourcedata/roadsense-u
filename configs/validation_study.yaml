@@ -1,0 +1,31 @@
+# Draft study contract. Null budgets must be chosen before external test results.
+status: draft_not_preregistered
+prediction_target: independently_labeled_pair_conflict_in_next_3_seconds
+prediction_horizon_s: 3.0
+seed: 42
+split_mode: location
+partitions: [train, calibration, threshold_validation, external_test]
+validation_negative_episode_false_positive_fraction: 0.05
+geometric_proximity_px: 60.0
+minimum_track_quality: 0.5
+regression_alert_threshold: 0.45
+required_annotation:
+  provenance: independent_review_and_adjudication_or_verified_dataset_labels
+  actor_ids: canonical_physical_users_not_assumed_tracker_ids
+  full_future_observation: true
+  visibility_review: true
+  clip_deduplication: true
+  camera_to_location_mapping: verified
+comparison:
+  freeze_detections_and_sample_timestamps: true
+  report_abstention_and_misses: true
+  compare_on_same_eligible_events: true
+  synthetic_and_real_separate: true
+bootstrap_unit: held_out_location
+budgets_to_declare_before_test:
+  minimum_meaningful_recall_gain: null
+  minimum_pair_scoring_coverage: null
+  maximum_p95_latency_ms: null
+  maximum_metadata_body_bytes_per_event: null
+  false_alerts_per_camera_hour: null
+# These are protocol fields, not PipelineConfig runtime settings.

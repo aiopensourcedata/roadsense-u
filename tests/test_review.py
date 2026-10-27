@@ -88,9 +88,57 @@ def test_preparation_cli_keeps_scores_and_labels_out_of_blind_page(tmp_path):
     page = (output / "review.html").read_text()
     assert "heuristic_score" not in page and "SYNTHETIC" in page
     assert not list(output.glob("*.jpg"))  # Footage samples are explicitly opt-in.
+    assert 'id="sheet"' not in page and "not exported" in page
     assert json.loads((output / "model_context.json").read_text())
     again = subprocess.run(command, capture_output=True, text=True)
     assert again.returncode != 0 and "Output exists" in again.stderr
+
+    # Real pipeline event schemas can seed review without inventing an ablation.
+    from datetime import datetime, timezone
+    from uuid import uuid4
+
+    from roadsense.cloud.schemas import FeatureSummary, TrafficEvent
+
+    event = TrafficEvent(
+        session_id=uuid4(),
+        camera_id="synthetic-camera",
+        location_id="synthetic-location",
+        timestamp=datetime.now(timezone.utc),
+        video_time_s=28,
+        event_type="predicted_conflict",
+        risk_score=0.9,
+        model_version="fixture",
+        track_ids=[1, 2],
+        classes=["car", "car"],
+        features=FeatureSummary(
+            distance=10,
+            relative_speed=2,
+            closing_speed=2,
+            cpa_distance=1,
+            time_to_cpa_s=1,
+            quality=0.9,
+            measurement_uncertainty=1,
+            units="px",
+        ),
+        explanations=[],
+        synthetic=True,
+    )
+    events = tmp_path / "events.jsonl"
+    events.write_text(event.model_dump_json() + "\n")
+    events_output = tmp_path / "event-review"
+    event_command = command.copy()
+    event_command[event_command.index("--comparison")] = "--events"
+    event_command[event_command.index(str(comparison))] = str(events)
+    event_command[event_command.index(str(output))] = str(events_output)
+    subprocess.run(event_command, check=True, capture_output=True)
+    event_manifest = json.loads((events_output / "manifest.json").read_text())
+    assert event_manifest["context_source_kind"] == "recorded_events"
+    assert len(event_manifest["windows"]) == 3
+    assert "heuristic_score" not in (events_output / "review.html").read_text()
+    event_command.remove("--synthetic")
+    event_command[event_command.index(str(events_output))] = str(tmp_path / "incorrect-provenance")
+    rejected = subprocess.run(event_command, capture_output=True, text=True)
+    assert rejected.returncode != 0 and "provenance must match" in rejected.stderr
 
 
 def test_partial_pair_coverage_is_counted_without_claiming_scene_accuracy():

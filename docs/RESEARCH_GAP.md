@@ -4,7 +4,7 @@
 
 Can causal trajectory features and measurement-aware abstention improve the detection of **labeled future traffic conflicts** at unseen fixed-camera locations, at a prespecified false-alert, latency and metadata budget, beyond matched geometric and calibrated classical baselines?
 
-Current status: working software and synthetic checks do not establish an affirmative answer. The integration itself is not a novelty claim.
+Current status: working software, real-video execution, a development regression and synthetic checks do not establish an affirmative answer. Independent pair-level near-miss evaluation remains missing. A small externally labeled scene-collision pilot has run without establishing learned warning improvement; see docs/LABELLED_COLLISION_PILOT.md. The integration itself is not a novelty claim. See [validation status](VALIDATION_STATUS.md).
 
 ## Literature search methodology
 
@@ -29,6 +29,14 @@ Targeted exploratory web review performed 2026-10-24. Queries covered camera tra
 | [Arya et al., TrafficFab, preprint September 24 2026](https://arxiv.org/abs/2609.29223) | Edge-cloud traffic analytics, forecasting and federated detector adaptation in a heterogeneous testbed. | Recent systems work further limits any broad edge/cloud/FL novelty claim; its reported scale is not independently verified here. |
 | [Transoft, TrafxSAFE Next announcement, January 8 2024](https://www.transoftsolutions.com/emea/news/trafxsafe-next-launches-at-trb-2024/) | Vendor-described video/near-miss safety analysis and crash estimation products. | A traffic safety dashboard or near-miss analytics is not unique. Product claims are not independent experimental evidence. |
 
+## Review update — 2026-10-27
+
+[ACCIDENT (submitted April 10, 2026)](https://arxiv.org/abs/2604.09819) provides a surveillance benchmark with geographic-shift evaluation and heuristic/learned detection baselines. This further rules out claiming that fixed-camera accident analysis or geographic evaluation is itself new. Its full-video localization task must not be conflated with our pre-event pair target.
+
+The [USDOT Intersection Safety Challenge](https://www.its.dot.gov/research-areas/intersection-safety/challenge/) already evaluates roadside perception, trajectory and conflict prediction. Its validation metadata/section 4.3.2 describes one intersection, 3D references and run-level TTC-based conflict labels. Different cameras at that same site are not independent locations, and run labels are not automatically three-second event-onset labels. [Source catalog](https://data.transportation.gov/Roadways-and-Bridges/Intersection-Safety-Challenge-Stage-1B-Validation-/j58q-ymi4/about_data).
+
+These findings narrow the candidate contribution toward a rigorous, reproducible audit of identity ambiguity, missing observations and selective coverage under matched monocular forecasting conditions. That narrower gap is also unverified. No competing method has yet been reproduced on a matched labeled test set.
+
 ## Candidate research gaps and proposed contribution
 
 Candidate contribution: a reproducible fixed-camera experiment quantifying the **joint** effect of calibration validity, tracking quality, uncertainty abstention and causal behavior features on cross-location warning quality and metadata cost. Publish explicit assumptions, event matching, failure modes and negative results. The current implementation supplies infrastructure and interpretable baselines for such a study; it does not demonstrate a new algorithm.
@@ -45,4 +53,4 @@ Preregister event semantics, geography splits and false-alert budget; reproduce 
 
 ## Claims that cannot yet be justified
 
-No claim of novel uncertainty-aware anticipation, reliable crash prediction, state-of-the-art accuracy, improved cross-location generalization, accurate physical speed from arbitrary video, proven hotspots/causation, privacy guarantees from FL, lower real cloud bills, or safety certification. No real-world performance experiments or competitor reproductions have been completed.
+No claim of novel uncertainty-aware anticipation, reliable crash prediction, state-of-the-art accuracy, improved cross-location generalization, accurate physical speed from arbitrary video, proven hotspots/causation, privacy guarantees from FL, lower real cloud bills, or safety certification. A small externally labeled scene-collision experiment has been completed, with low measurement coverage and no established learned warning improvement. Independent pair-level near-miss evaluation and matched competitor reproduction remain missing. Software tests, development regressions and the scene pilot do not establish those claims.

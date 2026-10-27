@@ -25,7 +25,7 @@ from roadsense.config import PipelineConfig
 from roadsense.detection.detector import SyntheticDetector, YoloByteTrack
 from roadsense.detection.pair_identity import PairIdentityGuard
 from roadsense.evaluation.coverage import ObservationCoverage
-from roadsense.motion.features import pair_features
+from roadsense.motion.features import pair_features, pair_projection
 from roadsense.motion.trajectories import Trajectories
 from roadsense.risk.rules import RiskEstimate, estimate
 
@@ -51,12 +51,12 @@ def run(
     destination.mkdir(parents=True, exist_ok=True)
     if (destination / "report.json").exists() or (destination / "trajectories.csv").exists():
         raise ValueError("Output directory already contains a run; choose a new directory")
-    reader = VideoReader(parse_source(source))
+    reader = VideoReader(parse_source(source), start_frame=config.start_frame)
     try:
         detector = detector_override or (
             SyntheticDetector()
             if config.detector == "synthetic"
-            else YoloByteTrack(config.weights, config.confidence, config.device)
+            else YoloByteTrack(config.weights, config.confidence, config.device, config.inference_size)
         )
         plane = GroundPlane.load(config.calibration) if config.calibration else None
     except Exception:
@@ -77,6 +77,7 @@ def run(
     initial_network_bytes = client.bytes_attempted if client else 0
     started, cpu_started = time.perf_counter(), time.process_time()
     first_timestamp, last_timestamp = None, 0.0
+    first_source_frame, last_source_frame = None, None
     fields = [
         "frame",
         "timestamp_s",
@@ -108,6 +109,7 @@ def run(
             (destination / "trajectories.csv").open("w", newline="") as tf,
             (destination / "events.jsonl").open("w") as ef,
             (destination / "features.jsonl").open("w") as ff,
+            (destination / "event_geometry.jsonl").open("w") as gf,
             (destination / "frame_timestamps.csv").open("w", newline="") as ft,
         ):
             csv_writer = csv.DictWriter(tf, fieldnames=fields)
@@ -118,6 +120,8 @@ def run(
                 tick = time.perf_counter()
                 if first_timestamp is None:
                     first_timestamp = frame.timestamp
+                    first_source_frame = frame.index
+                last_source_frame = frame.index
                 last_timestamp = frame.timestamp
                 coverage.observe(frame.timestamp, frame.discontinuity)
                 time_writer.writerow(
@@ -211,6 +215,9 @@ def run(
                         risk = estimate(features, config.horizon_s, proximity, config.min_quality)
                     if config.pair_identity.enabled:
                         risk.model_version = "rules-0.1+identity-0.1"
+                    projection = pair_projection(a, b, features.time_to_cpa_s, config.horizon_s)
+                    projection["scoreable"] = not risk.abstained
+                    projection["reliability_reasons"] = risk.reasons if risk.abstained else []
                     ff.write(
                         json.dumps(
                             {
@@ -223,6 +230,7 @@ def run(
                                 "reasons": risk.reasons,
                                 "synthetic": config.synthetic,
                                 "pair_identity": assessment.measurements,
+                                "projection": projection,
                             },
                             allow_nan=False,
                         )
@@ -258,6 +266,8 @@ def run(
                     )
                     ef.write(event.model_dump_json() + "\n")
                     ef.flush()
+                    gf.write(json.dumps({"event_id": str(event.event_id), "projection": projection}) + "\n")
+                    gf.flush()
                     if client:
                         try:
                             client.submit(event)
@@ -327,6 +337,8 @@ def run(
         "live_preview_enabled": preview is not None,
         "file_playback_paced": realtime and not reader.live,
         "frames": frames,
+        "source_first_frame": first_source_frame,
+        "source_last_frame": last_source_frame,
         "events": emitted,
         "abstained_pair_observations": abstained,
         "identity_ambiguity_abstentions": identity_abstentions,

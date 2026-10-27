@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 
 from roadsense.calibration.ground_plane import GroundPlane
-from roadsense.motion.features import disk_ttc, pair_features, post_encroachment_time
+from roadsense.motion.features import disk_ttc, pair_features, pair_projection, post_encroachment_time
 from roadsense.motion.trajectories import MotionState, Trajectories
 
 
@@ -20,6 +20,23 @@ def test_crossing_geometry():
     assert f.shared_time_a_s == pytest.approx(2)
     assert f.arrival_difference_s == pytest.approx(0)
     assert f.ttc_s is None
+
+
+def test_projection_preserves_coordinates_and_does_not_assert_collision():
+    a, b = state(1, [-10, 0], [5, 0]), state(2, [0, -10], [0, 5])
+    projection = pair_projection(a, b, 2)
+    assert projection["projected_positions"] == [[0, 0], [0, 0]]
+    assert projection["positions_now"] == [[-10, 0], [0, -10]]
+    assert projection["units"] == "px"
+    assert not projection["midpoint_is_verified_collision_location"]
+    b.position[0] = 10
+    assert pair_projection(a, b, 2)["projected_separation"] == pytest.approx(10)
+    for offset in [-1, 4, float("nan")]:
+        with pytest.raises(ValueError):
+            pair_projection(a, b, offset)
+    b.units = "m"
+    with pytest.raises(ValueError):
+        pair_projection(a, b, 2)
 
 
 def test_disk_ttc_and_divergence():

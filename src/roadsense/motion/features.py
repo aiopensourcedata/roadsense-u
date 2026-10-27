@@ -31,6 +31,41 @@ class PairFeatures:
         return asdict(self)
 
 
+def pair_projection(a: MotionState, b: MotionState, offset_s: float, horizon_s: float = 3) -> dict:
+    """Export constant-velocity positions at CPA for local inspection, not verified actors.
+
+    Bottom-center image anchors are approximate contact points. Their midpoint is
+    only a geometric summary and does not establish a collision location.
+    """
+    if not np.isfinite([offset_s, horizon_s]).all() or not 0 <= offset_s <= horizon_s or horizon_s <= 0:
+        raise ValueError("Projection offset must lie within a positive finite horizon")
+    if a.units not in {"px", "m"} or a.units != b.units or abs(a.timestamp - b.timestamp) > 1e-6:
+        raise ValueError("Projection states must share coordinates and timestamp")
+    for state in (a, b):
+        if (
+            state.position.shape != (2,)
+            or state.velocity.shape != (2,)
+            or not np.isfinite([state.timestamp, *state.position, *state.velocity]).all()
+        ):
+            raise ValueError("Projection requires finite 2D motion states")
+    pa, pb = a.position + offset_s * a.velocity, b.position + offset_s * b.velocity
+    return {
+        "method": "constant_velocity_at_clipped_cpa",
+        "participant_status": "unverified_track_pair",
+        "units": a.units,
+        "timestamp_s": a.timestamp,
+        "offset_s": offset_s,
+        "horizon_s": horizon_s,
+        "track_ids": [a.track_id, b.track_id],
+        "positions_now": [a.position.tolist(), b.position.tolist()],
+        "velocities": [a.velocity.tolist(), b.velocity.tolist()],
+        "projected_positions": [pa.tolist(), pb.tolist()],
+        "projected_separation": float(np.linalg.norm(pa - pb)),
+        "midpoint": ((pa + pb) / 2).tolist(),
+        "midpoint_is_verified_collision_location": False,
+    }
+
+
 def disk_ttc(r: np.ndarray, v: np.ndarray, radius: float) -> float | None:
     """First contact of two constant-velocity disks with a known combined radius."""
     r, v = np.asarray(r, dtype=float), np.asarray(v, dtype=float)

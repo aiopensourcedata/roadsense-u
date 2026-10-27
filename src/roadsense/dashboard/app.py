@@ -11,6 +11,9 @@ import httpx
 import pandas as pd
 import streamlit as st
 
+from roadsense.dashboard.artifacts import processed_runs, projection_rows
+from roadsense.dashboard.evaluation import evaluation_rows, is_scene_pilot
+
 st.set_page_config(page_title="RoadSense-U · Research workspace", page_icon="◈", layout="wide")
 st.markdown(
     """<style>
@@ -98,7 +101,12 @@ with overview:
             alt.Chart(timeline)
             .mark_circle(size=85)
             .encode(
-                x=alt.X("timestamp:T", title="Event timestamp (UTC)", axis=alt.Axis(format="%H:%M")),
+                x=alt.X(
+                    "timestamp:T",
+                    title="Event timestamp (UTC)",
+                    scale=alt.Scale(type="utc"),
+                    axis=alt.Axis(format="%H:%M"),
+                ),
                 y=alt.Y(
                     "risk_score:Q",
                     title="Reported score",
@@ -109,7 +117,12 @@ with overview:
                     title="Camera",
                     scale=alt.Scale(range=["#50dfbd", "#7cb6ff", "#ffca7a", "#c4a0ff"]),
                 ),
-                tooltip=["timestamp:T", "camera_id:N", "risk_score:Q", "score_kind:N"],
+                tooltip=[
+                    alt.Tooltip("timestamp:N", title="Timestamp (UTC)"),
+                    "camera_id:N",
+                    "risk_score:Q",
+                    "score_kind:N",
+                ],
             )
             .properties(height=250)
         )
@@ -235,11 +248,7 @@ with analytics:
 root = Path("outputs")
 with artifacts:
     st.subheader("Processed video and trajectories")
-    runs = sorted(
-        (p.parent for p in root.glob("*/report.json")),
-        key=lambda p: (p / "report.json").stat().st_mtime,
-        reverse=True,
-    )
+    runs = processed_runs(root)
     if runs:
         selected = st.selectbox("Processed run", runs, format_func=str)
         report = json.loads((selected / "report.json").read_text())
@@ -265,12 +274,47 @@ with artifacts:
             )
         with st.expander("Run configuration and measured performance"):
             st.json(report)
+        geometry_path = selected / "event_geometry.jsonl"
+        if geometry_path.exists():
+            geometries = [json.loads(line) for line in geometry_path.read_text().splitlines() if line.strip()]
+            if geometries:
+                st.subheader("Local pair geometry")
+                chosen = st.selectbox(
+                    "Geometry event",
+                    geometries,
+                    format_func=lambda g: f"{g['projection']['timestamp_s']:.3f}s · {g['event_id']}",
+                )
+                projection = chosen["projection"]
+                unit = projection["units"]
+                st.warning(
+                    "Unverified track pair. Projected anchors and their midpoint do not establish "
+                    "the colliding participants or a collision location."
+                )
+                st.caption(
+                    f"Constant-velocity projection {projection['offset_s']:.2f}s ahead; coordinates in {unit}."
+                )
+                points = alt.Chart(pd.DataFrame(projection_rows(projection))).encode(
+                    x=alt.X("x:Q", title=f"x ({unit})", scale=alt.Scale(zero=False)),
+                    y=alt.Y("y:Q", title=f"y ({unit})", scale=alt.Scale(reverse=unit == "px", zero=False)),
+                    color="Track:N",
+                    tooltip=["Track", "Stage", "x", "y"],
+                )
+                st.altair_chart(
+                    points.mark_line().encode(order="Order:Q")
+                    + points.mark_point(size=100).encode(shape="Stage:N"),
+                    width="stretch",
+                )
+                with st.expander("Complete local projection evidence"):
+                    st.json(chosen)
     else:
         st.info("Process a video to create local artifacts.")
 
 with evaluation_tab:
     st.subheader("Offline model evaluation")
-    reports = sorted(root.glob("*/evaluation.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    st.caption(
+        "Offline artifacts have their own dataset provenance; the sidebar filter applies to stored API events."
+    )
+    reports = sorted(root.rglob("evaluation.json"), key=lambda p: p.stat().st_mtime, reverse=True)
     if reports:
         choice = st.selectbox("Evaluation artifact", reports, format_func=str)
         evaluation = json.loads(choice.read_text())
@@ -278,25 +322,26 @@ with evaluation_tab:
             st.warning(
                 "SYNTHETIC BENCHMARK · These metrics do not establish real-world traffic performance or model superiority."
             )
-        rows = []
-        for name, values in evaluation.get("baselines", {}).items():
-            rows.append(
-                {
-                    "Baseline": name,
-                    "Precision": values["precision"],
-                    "Recall": values["recall"],
-                    "PR-AUC (average precision)": values["pr_auc_average_precision"],
-                    "Brier score": values["brier_score"],
-                    "Test episodes": values["n_events"],
-                }
+        if is_scene_pilot(evaluation):
+            st.warning(
+                "PUBLISHED SCENE-COLLISION PILOT · A timely scene alert does not verify the colliding actors. "
+                "Source-video splits do not establish independent camera locations."
             )
+            st.caption(evaluation.get("target", ""))
+            st.caption(
+                "Accepted-only AP/Brier require coverage context. Missing predictions are abstentions, "
+                "and these labels do not identify near misses."
+            )
+        rows = evaluation_rows(evaluation)
+        for name, reason in evaluation.get("unavailable_baselines", {}).items():
+            st.info(f"Unavailable baseline: {name}. {reason}")
         if rows:
             st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
         partitions = evaluation.get("partitions", {})
         columns = st.columns(4)
         for column, name in zip(columns, ["train", "calibration", "validation", "test"]):
             part = partitions.get(name, {})
-            column.metric(f"{name.capitalize()} observations", part.get("rows", 0))
+            column.metric(f"{name.capitalize()} observations", part.get("snapshots", part.get("rows", 0)))
         st.caption(
             "Fitting, probability calibration, threshold selection and final testing use disjoint groups. Rules have no Brier score because their scores are not probabilities."
         )

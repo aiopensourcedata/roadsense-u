@@ -18,7 +18,9 @@ Camera-based traffic interaction analysis with local video processing, a Postgre
 - **Dashboard:** event timeline, supporting measurements, camera comparisons, processing artifacts, and offline model evaluation.
 - **Local-first defaults:** footage recording is opt-in; the client sends event metadata rather than video frames.
 
-**Status: research alpha.** Rule scores are heuristic interaction estimates, not collision probabilities. The project has not been validated as a collision-warning system. Physical webcam/phone operation and moving real-world traffic accuracy still need validation.
+**Status: research alpha.** See the [validation status](docs/VALIDATION_STATUS.md) for executed evidence and missing research prerequisites. Rule scores are heuristic interaction estimates, not collision probabilities. The project has not been validated as a collision-warning system. Physical webcam/phone operation and moving real-world traffic accuracy still need validation.
+
+An [externally labeled collision pilot](docs/LABELLED_COLLISION_PILOT.md) exposed low measurement coverage and a participant-association failure. Its scene-level temporal matches do not establish correct collision warnings. Pair-level near-miss accuracy and unseen-camera generalization remain unverified.
 
 ```mermaid
 flowchart LR
@@ -95,9 +97,15 @@ Open [127.0.0.1:8765](http://127.0.0.1:8765) while processing runs. The preview 
 
 Recording requires `--save-video`. Preview frame rate depends on inference throughput and source buffering. Keep the viewer on loopback; it is not an authenticated remote video service.
 
+For small or distant objects, try `--inference-size 960` with either video or webcam commands. The default remains 640; larger sizes use more compute and do not guarantee better tracking or warnings. Bounding boxes and pixel measurements stay in the original image coordinates. Sizes must be multiples of 32 between 320 and 1920.
+
 ## Event measurements
 
 The **Event evidence** tab shows the values behind each alert, including closest approach, time to closest approach, closing speed, track quality, and residual-based uncertainty.
+
+New runs also export `event_geometry.jsonl`, linked by event ID, and pair projections in `features.jsonl`. In **Processed runs**, select a run and inspect its **Local pair geometry** chart: measured anchors and constant-velocity projected anchors are distinct. These track pairs remain unverified; the midpoint is not a confirmed collision location. Nested experiment runs are supported. See the [perception development protocol](docs/PERCEPTION_DEVELOPMENT.md).
+
+For actor-level diagnostics, the [offline annotation workflow](docs/ACTOR_REVIEW.md) separates raw detections from tracked boxes, provides a score-blind box editor, and rejects blank or incomplete labels before evaluation. Model output counts are not actor ground truth.
 
 ![Event evidence with measured geometry for a synthetic alert](docs/assets/event-evidence.png)
 
@@ -149,6 +157,8 @@ Metrics include precision/recall, average precision, validation-selected false-p
 ## Testing
 
 Local verification on **2026-10-24**: **41 automated tests** and **16 browser/API/PostgreSQL checks** passed. The browser run persisted 12 computed synthetic alert emissions and captured every screenshot above. [Capture manifest](docs/assets/provenance.json).
+
+Subsequent checks on **2026-10-27** passed **80 automated tests**. The [published-label collision comparison](docs/LABELLED_COLLISION_PILOT.md) includes 28 source clips and eight fresh test sources; it exposes low coverage and does not establish learned warning improvement. Historical synthetic screenshots and browser checks remain separate from that experiment.
 
 ```bash
 pip install -e '.[dev,dashboard,e2e]'

@@ -26,6 +26,11 @@ def test_video_to_computed_events_to_database(tmp_path):
     ]
     assert rows[0].features.cpa_distance < 5
     assert rows[0].features.units == "px" and rows[0].features.ttc_s is None
+    geometry = [json.loads(line) for line in (output / "event_geometry.jsonl").read_text().splitlines()]
+    assert [g["event_id"] for g in geometry] == [str(row.event_id) for row in rows]
+    assert geometry[0]["projection"]["scoreable"]
+    assert geometry[0]["projection"]["projected_separation"] == pytest.approx(rows[0].features.cpa_distance)
+    assert geometry[0]["projection"]["participant_status"] == "unverified_track_pair"
     assert not (output / "annotated.mp4").exists()
     key = "integration-test-secret-at-least-24"
     url = f"sqlite:///{tmp_path}/events.db"
@@ -41,6 +46,22 @@ def test_video_to_computed_events_to_database(tmp_path):
         assert len(persisted) == len(rows)
         assert persisted[0]["event_id"] == str(rows[0].event_id)
     assert json.loads((output / "report.json").read_text())["synthetic"]
+    # A fresh analysis window retains original frame IDs/PTS, with no seek-based timing.
+    subset = tmp_path / "subset"
+    sliced = run(
+        str(tmp_path / "data/crossing.avi"),
+        str(subset),
+        PipelineConfig(detector="synthetic", synthetic=True, start_frame=40, max_frames=20),
+    )
+    import csv
+
+    with (subset / "frame_timestamps.csv").open() as stream:
+        timeline = list(csv.DictReader(stream))
+    assert sliced["frames"] == 20
+    assert [sliced["source_first_frame"], sliced["source_last_frame"]] == [40, 59]
+    assert [int(row["frame"]) for row in timeline] == list(range(40, 60))
+    assert float(timeline[0]["timestamp_s"]) == pytest.approx(2.0)
+    assert float(timeline[-1]["timestamp_s"]) == pytest.approx(2.95)
 
 
 def test_ground_plane_pipeline_exports_metric_units(tmp_path):
@@ -103,7 +124,7 @@ def test_reconnect_resets_alert_cooldown_and_scopes_reused_ids(tmp_path, monkeyp
         fps = 20
         live = False
 
-        def __init__(self, source):
+        def __init__(self, source, start_frame=0):
             self.cap = Capture()
 
         def __iter__(self):
@@ -153,7 +174,7 @@ def test_identity_abstention_blocks_duplicate_pair_but_keeps_tracks(tmp_path, mo
         fps = 20
         live = False
 
-        def __init__(self, source):
+        def __init__(self, source, start_frame=0):
             self.cap = Capture()
 
         def __iter__(self):

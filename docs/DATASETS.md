@@ -19,3 +19,19 @@ A second helper creates a repeated-frame video from the official Ultralytics bus
 ## Data acquisition checklist before future adapters
 
 Obtain access and read current terms; record exact version/source and attribution; inspect a permitted small sample plus annotations; validate timing, coordinate systems, consent and label semantics; estimate compressed/extracted disk needs and reserve capacity; check camera identities and duplicate sources; then implement a versioned adapter with checksums, bounded downloads and explicit user-triggered acquisition. Do not scrape restricted sources, bypass gates or silently relabel machine-generated boxes as ground truth.
+
+## Compatibility audit — 2026-10-27
+
+Added ACCIDENT and the USDOT Intersection Safety Challenge to the primary-source review. The latter provides unlabeled training and separately labeled validation from one physical site; its conflict labels are run-level TTC/path-intersection labels. They cannot be broadcast to arbitrary pair timestamps or treated as human-adjudicated near misses. Only catalog metadata and a bounded 9.7 MB documentation archive were read. No traffic archive was downloaded. ACCIDENT's maintained setup requires Kaggle authentication; its terms were not verified here. Exact sources, sizes, task mismatches and unresolved conditions are recorded in [validation status](VALIDATION_STATUS.md).
+
+## Bellevue source verification — 2026-10-27
+
+The [City of Bellevue's official dataset repository](https://github.com/City-of-Bellevue/TrafficVideoDataset) links the exact user-provided [Bellevue_116th_NE12th folder](https://drive.google.com/drive/folders/16coOR8PlNzvmUm1vsaYJVF_bAOQGySa8). It describes approximately 101 hours across five intersections, captured in September 2017, and makes the footage available for research purposes with an as-is disclaimer. This is not a verified standard open-data redistribution license; source videos and extracted real frames stay private under ignored directories.
+
+The inspected folder lists 21 MP4s totaling 6,667,525,369 bytes. It represents **one physical intersection**, including the previously tested 17:08 recording; different files here are not independent camera locations. No annotation files or conflict labels were present in the folder listing. Four additional recordings were selected by size/date before inference, totaling 146,047,991 bytes, with SHA-256 provenance and a frozen 400-frame-per-file protocol. This is a convenience sample for execution and failure analysis, not a representative accuracy benchmark. Local manifests, source audits and inference artifacts are under `outputs/drive-evaluation-01/`.
+
+## ACCIDENT labeled-pilot access — later 2026-10-27
+
+The earlier check established that the maintained downloader requires an authenticated Kaggle CLI. A later direct check of Kaggle's public API retrieved the catalog, original `metadata-real.csv` and bounded individual videos without credentials. The returned dataset metadata declares CC BY-NC-SA 4.0. Only 16 selected research clips (47.4 MB) were initially downloaded, followed by 12 fresh sources (31.9 MB) for an expanded comparison; no 20 GB archive was fetched and no access gate was bypassed. Files/checksums and metadata versions are recorded locally.
+
+Annotations identify scene impact time/region/type; the real subset does not supply participant track IDs. They support a narrow published-collision-onset target, not automatic near-miss labels or pair attribution. The pilot records the observed count/index discrepancy and validates label-frame PTS before inference. See [protocol and results](LABELLED_COLLISION_PILOT.md), [dataset card](https://www.kaggle.com/datasets/picekl/accident), and [paper](https://arxiv.org/abs/2604.09819). Footage remains private; source dataset terms are distinct from the project's code license.

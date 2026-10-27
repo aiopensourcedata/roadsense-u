@@ -39,12 +39,14 @@ class PipelineConfig(BaseModel):
     weights: str = "data/yolo11n.pt"
     device: str = "cpu"
     confidence: float = Field(default=0.1, gt=0, le=1)
+    inference_size: int = Field(default=640, ge=320, le=1920, multiple_of=32)
     horizon_s: float = Field(default=3, gt=0)
     proximity_px: float = Field(default=60, gt=0)
     proximity_m: float = Field(default=3, gt=0)
     min_quality: float = Field(default=0.5, ge=0, le=1)
     alert_threshold: float = Field(default=0.45, ge=0, le=1)
     cooldown_s: float = Field(default=3, gt=0)
+    start_frame: int = Field(default=0, ge=0)
     max_frames: int = Field(default=0, ge=0)
     save_video: bool = False
     synthetic: bool = False
