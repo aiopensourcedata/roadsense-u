@@ -1,6 +1,42 @@
 # Project status
 
-Updated: 2026-10-27. Version 0.1.0, research alpha.
+Updated: 2026-10-30. Version 0.1.0, research alpha.
+
+## Local cloud and enterprise slice — 30 October
+
+Implemented recoverable delivery with persistent backoff/permanent-rejection state, single-organization camera-scoped ingest/read/admin credentials, mutation audits, protected process metrics, explicit schema revisions, scheduled retention and bounded metadata backup/restore. A separate Compose project runs PostgreSQL, API, a scoped dashboard and a trusted local TLS gateway without exposing host outputs through the dashboard. [Setup and limits](CLOUD_ENTERPRISE.md).
+
+Actual HTTPS/PostgreSQL verification passed: computed synthetic delivery, role/camera denials, concurrent shared-manifest insertion, replay, a 13-row metadata backup/restoration and isolated revision downgrade/upgrade. Existing development data/volumes were preserved. This is local integration, not remote cloud deployment, tenant isolation, SSO, certified security or an SLA.
+
+Executed a frozen 108-trial development comparison with 1/4 simulated senders, three policies, six profiles and 1,620 generated test records. Persistent recovery stores all records in the tested healthy/delayed/outage/429/lost-ACK profiles. With a one-record queue it stores only about 19–22%, with 72 rejected enqueues; synchronous delivery instead delays the producer. [Measured results and caveats](CLOUD_DELIVERY_RESULTS.md). These are repeated computed synthetic metadata, not independent traffic events/cameras. Original traffic-label/site/exposure blockers remain unresolved.
+
+Final local suite: **145 passed**, including Chromium, real vision checks, access denials, legacy migration and delivery recovery. Ruff format/lint, Bandit medium/high, source/wheel builds, Twine and the 185-file/two-distribution content guard passed. Private paper material, credentials, footage, weights, backups and generated results are excluded. Exact plans, artifacts and private paper analysis remain local; public scripts reproduce fresh local experiments. Git history identifies the published implementation; hosted CI results are separate from these local checks.
+
+## Latest development — lifecycle, provenance and review follow-up
+
+Added explicit clock-failure/recovery epochs with raw PTS, atomic interrupted/failed reports (including initialization failures), dashboard partial-run labels, a bounded durable asynchronous delivery outbox and an explicit recovery CLI. HTTP retries no longer execute in the frame loop. Capture freshness remains unknown; reports distinguish decode/inference/scoring/arrival timings and bounded shutdown snapshots.
+
+Metric runtime calibration now requires exact camera/native geometry/transform/pose binding, excludes outside-hull observations by default and reports fallback exclusions. New events bind to an immutable configuration/code/model/tracker/environment manifest, persist/retrieve it through the authenticated API and distinguish declared capture/placeholder origin, media time and server ingestion. Legacy payload replay remains compatible. [Behavior and limits](RELIABILITY_AND_PROVENANCE.md).
+
+Implemented an exact 13-package vision record, a dedicated pinned CI job and real local YOLO/ByteTrack boundary checks. Executed a saved-model diagnostic: six accepted historical test probabilities span 0.4964–0.5048; calibrated Brier rounds to 0.250, as does constant 0.5, versus raw logistic 0.273. No calibration-quality or improved-warning claim follows. A local media-free source/cached-result archive reproduced the full historical scene report and bootstrap after extraction; it does not reconstruct original acquisition/inference.
+
+Actual localhost HTTP → isolated PostgreSQL integration passed with one computed synthetic event, one persisted run manifest, authentication, idempotent replay and zero pending deliveries. The temporary schema was removed; existing application tables were not changed. No real-traffic accuracy claim or deployment/browser-dashboard rerun follows from this integration test. Final local verification: 137 tests passed with actual Chromium and vision integration enabled; Ruff format/lint and Bandit medium/high checks passed. Source/wheel distributions build locally; cached report reproduction and manifest checks passed. Hosted CI/fresh environment installation have not run. All scientific blockers still require independent participant/motion/outcome references, verified new sites and normal-traffic exposure. No detector promotion or push.
+
+## Latest development — measurement correctness
+
+Fixed causal motion-jump rejection before fitting, shared runtime/general-benchmark eligibility (including identity and uncertainty), and fail-closed scene availability/cohort validation. Missing perception remains in operating denominators. Added targeted synthetic regressions for jump rejection/recovery at multiple sampling rates and units, runtime scoring parity, missing perception and malformed cached scene artifacts. [Behavior, assumptions and remaining work](MEASUREMENT_CORRECTNESS.md).
+
+Verification: 125 tests passed including the actual Chromium annotation test outside the sandbox; Ruff format/lint, Bandit medium/high and the 158-file source-content guard passed. The sandbox run had 124 passes and a browser socket-permission failure, resolved by the full rerun outside it.
+
+Replayed the saved scene evaluation from cached measurements into a fresh directory: the complete report and bootstrap exactly match, with original inputs unchanged. This does not rerun historical motion under the corrected guard. Existing results remain historical; independent actor labels and fresh site/exposure evidence are still required. No detector promotion, manuscript change, commit or push.
+
+## Latest development — controlled perception comparisons
+
+Implemented opt-in full-frame-plus-crop inference, original-coordinate NMS, one shared ByteTrack update per frame, measured detector-request counts and a larger-checkpoint comparator. The frozen full-frame bridge exactly reproduces 1,475 existing pair records/decisions. Preserved the default YAML, risk thresholds, completed scene tests and blank actor labels.
+
+Executed 737 frame computations for tiled/control runs and 519 for YOLO11s on the same four inspected training sources. Scheduled usable coverage: YOLO11n 640/960 and tiled 640 each 1/10; YOLO11s 640 is 2/10. The additional measurement is negative, so positive availability remains 1/4 for every profile. Tiling emits seven prefix records, including two at/after onset, versus one baseline record. These are not accuracy or false-alarm improvements. The 19.3 MB official checkpoint was downloaded explicitly with size/disk checks and an initial-download hash; no new dataset footage was acquired.
+
+Added an eight-stage prediction comparison on the same 29 review frames without copying images or changing labels. Identical-source prediction rebinding rejects changed frame identities/geometry, and blank reviews still cannot produce actor metrics. Full suite: 105 tests passed, plus Ruff format/lint, Bandit medium/high and a 157-file source-content check. Updated paper materials only in private `.research/`; no commit or push. [Reproduction and measured limits](TILED_PERCEPTION.md). Next required evidence remains independent actor/outcome adjudication and a fresh verified-site evaluation; no positive warning improvement has been demonstrated.
 
 ## Latest development — actor review and detector/tracker separation
 

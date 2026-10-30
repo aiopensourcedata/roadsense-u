@@ -61,7 +61,7 @@ The initializer creates private local credentials in `.env` and refuses to overw
 
 ### Local cloud and enterprise lab
 
-A separate local deployment adds camera-scoped service credentials, verified HTTPS, audit records, migrations, scheduled retention and backup/restore verification. Its durable outbox retries transient outages without blocking the frame loop. [Setup and experiments](docs/CLOUD_ENTERPRISE.md).
+A separate local deployment adds camera-scoped service credentials, verified HTTPS, audit records, migrations, scheduled retention and backup/restore verification. Its durable outbox retries transient outages without blocking the frame loop. [Setup and experiments](docs/CLOUD_ENTERPRISE.md). [Executed local results](docs/CLOUD_DELIVERY_RESULTS.md) include recovery and full-queue failures; they are synthetic transport measurements.
 
 This remains a single-organization research alpha; tenant isolation, SSO, remote availability and traffic-warning accuracy are not established.
 
