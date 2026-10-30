@@ -126,3 +126,46 @@ def test_invalid_or_live_start_frame_is_rejected_before_open():
             VideoReader("unused.mp4", start_frame=value)
     with pytest.raises(ValueError, match="prerecorded"):
         VideoReader(999, start_frame=1)
+
+
+def test_clock_reset_and_repeated_pts_censor_coverage(monkeypatch):
+    import cv2
+    import numpy as np
+
+    from roadsense.evaluation.coverage import ObservationCoverage
+
+    pts = [0.0, 0.033, 0.067, 0.0, 0.033, 0.033, 0.067]
+
+    class Capture:
+        index = -1
+
+        def open(self, *args):
+            pass
+
+        def isOpened(self):
+            return True
+
+        def release(self):
+            pass
+
+        def get(self, prop):
+            if prop == cv2.CAP_PROP_FPS:
+                return 30
+            if prop == cv2.CAP_PROP_FRAME_COUNT:
+                return len(pts)
+            return pts[self.index] * 1000
+
+        def read(self):
+            self.index += 1
+            return (True, np.zeros((4, 4, 3), np.uint8)) if self.index < len(pts) else (False, None)
+
+    monkeypatch.setattr("roadsense.camera.video_reader.cv2.VideoCapture", Capture)
+    frames = list(VideoReader("reset.mp4"))
+    assert all(b.timestamp > a.timestamp for a, b in zip(frames, frames[1:]))
+    assert frames[3].discontinuity and frames[5].discontinuity
+    assert frames[3].raw_timestamp_s == 0
+    assert frames[4].timestamp_source == "media_pts_new_epoch"
+    coverage = ObservationCoverage()
+    for frame in frames:
+        coverage.observe(frame.timestamp, frame.discontinuity)
+    assert not coverage.assess(0.033, 0.1)["future_observation_complete"]

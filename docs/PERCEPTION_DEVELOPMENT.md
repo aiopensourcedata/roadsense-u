@@ -57,6 +57,8 @@ Detailed local evidence: `outputs/perception-development-01/development-plan.jso
 
 ## Interpretation and next experiment
 
+Subsequent controlled [tiled/capacity experiments](TILED_PERCEPTION.md) found no positive-availability gain: every profile remains 1/4 on positive development horizons. YOLO11s adds one usable negative horizon; tiling increases prefix emissions without increasing scheduled coverage. These results are separate from the frozen scene test and do not establish improved warning performance.
+
 The subsequent [actor-review workflow](ACTOR_REVIEW.md) now separates detector-only proposals from cached track outputs and prepares explicit manual annotation without inventing actor ground truth.
 
 More scoreable observations could include more wrong detections or wrong participant pairs. Fewer alerts could hide genuine interactions. Neither change proves improvement without actor-level truth. All 28 previously evaluated source videos are now considered inspected for subsequent development; a future performance comparison must use fresh frozen sources, ideally verified separate cameras, with actor and outcome adjudication. The 960 setting stays opt-in regardless of this development result.

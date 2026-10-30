@@ -14,12 +14,15 @@ def main() -> None:
     parser.add_argument("--review", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
+        "--predictions", type=Path, help="Additional comparison stages bound to the same manifest"
+    )
+    parser.add_argument(
         "--allow-first-pass", action="store_true", help="Exploratory only; not adjudicated truth"
     )
     args = parser.parse_args()
     if args.output.exists():
         parser.error("Choose a fresh output file")
-    result = evaluate_actor_review(args.bundle, args.review, args.allow_first_pass)
+    result = evaluate_actor_review(args.bundle, args.review, args.allow_first_pass, args.predictions)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2) + "\n")
     print(json.dumps({k: v for k, v in result.items() if k != "stages"}, indent=2))

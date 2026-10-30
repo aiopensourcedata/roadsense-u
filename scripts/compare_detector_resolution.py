@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Paired inference-size development diagnostic on already designated training sources.
+"""Inference-size/checkpoint development diagnostic on designated training sources.
 
 No ground-truth regions or event labels enter detection, tracking or risk scoring.
 Snapshot coverage is not detection accuracy or correct-participant warning recall.
@@ -30,6 +30,10 @@ def main() -> None:
     parser.add_argument("--sizes", type=int, nargs="+", default=[640, 960])
     parser.add_argument("--config", default="configs/default.yaml")
     parser.add_argument("--output", required=True)
+    parser.add_argument(
+        "--weights", type=Path, help="Optional local candidate checkpoint, without changing defaults"
+    )
+    parser.add_argument("--weights-sha256", help="Required exact digest for an explicit candidate checkpoint")
     args = parser.parse_args()
     plan_path, downloads_path = Path(args.plan), Path(args.downloads)
     plan = json.loads(plan_path.read_text())
@@ -41,8 +45,16 @@ def main() -> None:
         raise ValueError("Base configuration differs from the selected-source experiment")
     if sha256(Path(base.weights)) != plan["weights_sha256"]:
         raise ValueError("Weights differ from selected-source experiment")
+    if (args.weights is None) != (args.weights_sha256 is None):
+        raise ValueError("Candidate weights and their SHA256 must be supplied together")
+    if args.weights is not None:
+        if sha256(args.weights) != args.weights_sha256:
+            raise ValueError("Candidate checkpoint checksum mismatch")
+        base.weights = str(args.weights)
     if len(set(args.indices)) != len(args.indices) or len(set(args.sizes)) != len(args.sizes):
         raise ValueError("Duplicate sources or sizes")
+    if not args.indices or any(i < 0 or i >= len(plan["selected"]) for i in args.indices):
+        raise ValueError("Source indices must lie within the selected cohort")
     selected = [plan["selected"][i] for i in args.indices]
     if any(row["partition"] != "train" for row in selected):
         raise ValueError("Development comparisons must use training sources only")
@@ -63,10 +75,22 @@ def main() -> None:
         "selected": selected,
         "order": "one worker; alternate size order between clips",
     }
+    if args.weights is not None:
+        manifest["reference_weights_sha256"] = plan["weights_sha256"]
+        manifest["implementation_sha256"] = {
+            str(p): sha256(p)
+            for p in [
+                Path(__file__),
+                Path("src/roadsense/config.py"),
+                Path("src/roadsense/pipeline.py"),
+                Path("src/roadsense/detection/detector.py"),
+            ]
+        }
     frozen = output / "development-plan.json"
     if frozen.exists():
         old = json.loads(frozen.read_text())
         old.pop("created_utc")
+        old["base_config"] = PipelineConfig.model_validate(old["base_config"]).model_dump()
         if old != manifest:
             raise ValueError("Output already belongs to a different development plan")
     else:

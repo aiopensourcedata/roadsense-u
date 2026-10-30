@@ -69,16 +69,32 @@ def load_observations(path: str) -> pd.DataFrame:
         raise ValueError("Probability baseline requires one prespecified prediction timestamp per event")
     if not frame.label.isin([0, 1]).all():
         raise ValueError("Target labels must be binary")
-    numeric = frame[[*FEATURES, "prediction_time_s"]].to_numpy(dtype=float)
-    if not np.isfinite(numeric).all():
-        raise ValueError("Prediction timestamps and features must be finite")
+    for column in ("scoreable", "identity_ambiguous"):
+        if column in frame:
+            parsed = (
+                frame[column]
+                .astype(str)
+                .str.lower()
+                .map({"true": True, "false": False, "1": True, "0": False})
+            )
+            if parsed.isna().any():
+                raise ValueError(f"{column} must be explicit true/false")
+            frame[column] = parsed
+    available = frame.get("scoreable", pd.Series(True, index=frame.index))
+    numeric = frame.loc[available, FEATURES].to_numpy(dtype=float)
+    if not np.isfinite(frame.prediction_time_s.to_numpy(dtype=float)).all() or not np.isfinite(numeric).all():
+        raise ValueError("Prediction timestamps and available features must be finite")
+    if "measurement_uncertainty" in frame:
+        uncertainty = frame.loc[available, "measurement_uncertainty"].to_numpy(dtype=float)
+        if not np.isfinite(uncertainty).all() or (uncertainty < 0).any():
+            raise ValueError("Available uncertainty must be finite and nonnegative")
     if (
         (frame.prediction_time_s < 0).any()
         or (frame.cpa_distance < 0).any()
         or (frame.time_to_cpa_s < 0).any()
     ):
         raise ValueError("Prediction times, CPA distances and times must be nonnegative")
-    if not frame.quality.between(0, 1).all():
+    if not frame.loc[available, "quality"].between(0, 1).all():
         raise ValueError("Track quality must lie in [0,1]")
     lead = frame.event_time_s - frame.prediction_time_s
     positive = frame.label == 1

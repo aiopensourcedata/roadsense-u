@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def processed_runs(root: Path) -> list[Path]:
-    """Find nested completed pipeline reports; ignore other research report formats."""
+    """Find nested finalized pipeline reports, including explicit partial runs; ignore other research report formats."""
     runs = []
     for path in root.rglob("report.json"):
         try:

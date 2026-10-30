@@ -6,6 +6,8 @@ import runpy
 import tarfile
 from pathlib import Path
 
+import pytest
+
 CHECK = runpy.run_path(str(Path(__file__).resolve().parents[1] / "scripts/check_release.py"))
 
 
@@ -14,6 +16,8 @@ def test_private_paths_and_ordinary_metadata():
     for name in [
         ".env",
         ".aws/credentials",
+        ".research/paper.tex",
+        "project/.research/references.bib",
         "outputs/video.json",
         "data/a.avi",
         "../escape.py",
@@ -54,6 +58,7 @@ def test_archive_inspection_rejects_private_and_traversing_members(tmp_path):
         for name, body in [
             ("project/LICENSE", b"license"),
             ("project/.env", b"secret"),
+            ("project/.research/paper.tex", b"private manuscript fixture"),
             ("../outside.py", b"bad"),
         ]:
             info = tarfile.TarInfo(name)
@@ -61,6 +66,7 @@ def test_archive_inspection_rejects_private_and_traversing_members(tmp_path):
             out.addfile(info, io.BytesIO(body))
     problems = CHECK["check_artifact"](archive, [])
     assert any(".env" in p for p in problems)
+    assert any(".research" in p for p in problems)
     assert any("../outside" in p for p in problems)
 
 
@@ -78,8 +84,9 @@ def test_wheel_symlinks_are_rejected(tmp_path):
     assert any("shortcut.py" in item for item in CHECK["check_artifact"](path, []))
 
 
-def test_weight_download_refuses_a_changed_upstream_artifact(tmp_path, monkeypatch):
-    import pytest
+@pytest.mark.parametrize("model", ["yolo11n", "yolo11s"])
+def test_weight_download_refuses_a_changed_upstream_artifact(tmp_path, monkeypatch, model):
+    import sys
 
     script = Path(__file__).resolve().parents[1] / "scripts/download_weights.py"
 
@@ -97,7 +104,8 @@ def test_weight_download_refuses_a_changed_upstream_artifact(tmp_path, monkeypat
             return b"x" * (1024**2 + 1)
 
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", [str(script), "--model", model])
     monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: Response())
     with pytest.raises(SystemExit, match="checksum differs"):
         runpy.run_path(str(script), run_name="__main__")
-    assert not (tmp_path / "data/yolo11n.pt").exists()
+    assert not (tmp_path / "data" / f"{model}.pt").exists()

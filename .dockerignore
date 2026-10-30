@@ -3,6 +3,7 @@
 .aws
 .agents
 .codex
+.research
 .env*
 data
 outputs

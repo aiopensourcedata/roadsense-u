@@ -23,9 +23,28 @@ class MotionState:
 
 
 class Trajectories:
-    def __init__(self, window_s: float = 1.0, max_gap_s: float = 0.5, min_samples: int = 4):
+    def __init__(
+        self,
+        window_s: float = 1.0,
+        max_gap_s: float = 0.5,
+        min_samples: int = 4,
+        jump_floor_px: float = 5.0,
+        jump_floor_m: float = 0.5,
+        jump_residual_multiplier: float = 10.0,
+        jump_motion_multiplier: float = 5.0,
+    ):
         if not np.isfinite([window_s, max_gap_s]).all() or min(window_s, max_gap_s) <= 0 or min_samples < 2:
             raise ValueError("Motion windows must be positive and require at least two samples")
+        if (
+            not np.isfinite(
+                [jump_floor_px, jump_floor_m, jump_residual_multiplier, jump_motion_multiplier]
+            ).all()
+            or min(jump_floor_px, jump_floor_m, jump_residual_multiplier, jump_motion_multiplier) <= 0
+        ):
+            raise ValueError("Jump tolerances must be positive and finite")
+        self.jump_floors = {"px": jump_floor_px, "m": jump_floor_m}
+        self.jump_residual_multiplier = jump_residual_multiplier
+        self.jump_motion_multiplier = jump_motion_multiplier
         self.window_s, self.max_gap_s, self.min_samples = window_s, max_gap_s, min_samples
         self.history: dict[int, deque] = {}
         self.previous: dict[int, MotionState] = {}
@@ -51,6 +70,21 @@ class Trajectories:
             h.clear()
             prev = None
             flags.append("gap_or_coordinate_change_reset")
+        # Assess innovation against ONLY the previous accepted history. A suspect
+        # observation must not inflate its own rejection threshold or motion fit.
+        if prev and prev.quality > 0 and len(h) >= self.min_samples:
+            dt = timestamp - prev.timestamp
+            innovation = float(np.linalg.norm(point - (prev.position + dt * prev.velocity)))
+            tolerance = max(
+                self.jump_floors[units],
+                self.jump_residual_multiplier * prev.residual,
+                self.jump_motion_multiplier * float(np.linalg.norm(prev.velocity)) * dt,
+            )
+            if innovation > tolerance:
+                h.clear()
+                prev = None
+                flags.append("possible_id_switch_or_jump")
+                flags.append("motion_reinitialization_required")
         h.append((timestamp, np.array(point, float)))
         while h and timestamp - h[0][0] > self.window_s:
             h.popleft()
@@ -75,9 +109,6 @@ class Trajectories:
                         np.linalg.norm(coef[1]) * np.linalg.norm(prev.velocity)
                     )
                     turn = float(np.degrees(np.arccos(np.clip(cos, -1, 1))))
-            if prev and np.linalg.norm(point - prev.position) > max(10 * residual, 5 * displacement, 5):
-                flags.append("possible_id_switch_or_jump")
-                quality *= 0.1
             state = MotionState(
                 tid,
                 timestamp,

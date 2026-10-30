@@ -26,6 +26,9 @@ ROOT_FILES = {
     "MANIFEST.in",
     "Dockerfile",
     "docker-compose.yml",
+    "docker-compose.enterprise.yml",
+    "configs/cloud/Caddyfile.local",
+    "configs/cloud/Caddyfile.remote",
     ".env.example",
     ".gitignore",
     ".dockerignore",
@@ -39,7 +42,17 @@ DOCUMENTATION_IMAGES = {
 }
 DIRECTORIES = {"src", "scripts", "tests", "configs", "docs", ".github"}
 SUFFIXES = {".py", ".md", ".yaml", ".yml", ".json"}
-PRIVATE_PARTS = {".git", ".venv", ".aws", ".codex", ".agents", "__pycache__", ".pytest_cache", ".ruff_cache"}
+PRIVATE_PARTS = {
+    ".git",
+    ".venv",
+    ".aws",
+    ".codex",
+    ".agents",
+    ".research",
+    "__pycache__",
+    ".pytest_cache",
+    ".ruff_cache",
+}
 BINARY_SUFFIXES = {
     ".pt",
     ".onnx",

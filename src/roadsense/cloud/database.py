@@ -9,6 +9,23 @@ class Base(DeclarativeBase):
     pass
 
 
+class AuditRow(Base):
+    __tablename__ = "audit_log"
+    audit_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    timestamp: Mapped[object] = mapped_column(DateTime(timezone=True), index=True)
+    principal_id: Mapped[str] = mapped_column(String(100), index=True)
+    action: Mapped[str] = mapped_column(String(100))
+    camera_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    resource_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+
+class RunRow(Base):
+    __tablename__ = "runs"
+    session_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    manifest_sha256: Mapped[str] = mapped_column(String(64))
+    payload: Mapped[dict] = mapped_column(JSON)
+
+
 class EventRow(Base):
     __tablename__ = "events"
     event_id: Mapped[str] = mapped_column(String(36), primary_key=True)

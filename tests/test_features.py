@@ -101,3 +101,36 @@ def test_calibration_rejects_duplicate_validation_points_and_invalid_tolerance()
         GroundPlane(*args)
     with pytest.raises(ValueError, match="tolerance"):
         GroundPlane(*args, max_error_m=float("nan"))
+
+
+@pytest.mark.parametrize("fps", [10, 30, 60])
+@pytest.mark.parametrize("units,scale", [("px", 1.0), ("m", 0.01)])
+def test_jump_rejected_before_fit_and_requires_recovery(fps, units, scale):
+    trajectory = Trajectories()
+    for i in range(fps):
+        t = i / fps
+        previous = trajectory.update(1, t, np.array([20 * t, 0]) * scale, 0.9, units)
+    assert previous.velocity[0] == pytest.approx(20 * scale)
+    jumped = trajectory.update(1, 1.0, np.array([120, 0]) * scale, 0.9, units)
+    assert "possible_id_switch_or_jump" in jumped.flags
+    assert jumped.quality == 0
+    assert jumped.velocity == pytest.approx([0, 0])
+    from roadsense.risk.rules import estimate
+
+    other = state(2, [60 * scale, 0], [0, 0], units)
+    assert estimate(pair_features(jumped, other)).abstained
+    # New identity/position needs a fresh motion window, never the old samples.
+    assert len(trajectory.history[1]) == 1
+    for i in range(1, fps // 2 + 1):
+        recovered = trajectory.update(1, 1 + i / fps, np.array([120 + 20 * i / fps, 0]) * scale, 0.9, units)
+    assert recovered.velocity == pytest.approx([20 * scale, 0])
+    assert recovered.quality == pytest.approx(0.9)
+
+
+def test_smooth_acceleration_is_not_quarantined():
+    trajectory = Trajectories()
+    for i in range(61):
+        t = i / 30
+        result = trajectory.update(1, t, np.array([20 * t + 2 * t**2, 0]), 0.9)
+        assert "possible_id_switch_or_jump" not in result.flags
+    assert result.quality > 0.5

@@ -1,0 +1,8 @@
+# Experimental larger-detector baseline. Download explicitly; not a validated improvement.
+weights: data/yolo11s.pt
+device: cpu
+confidence: 0.1
+inference_size: 640
+save_video: false
+tiling:
+  enabled: false

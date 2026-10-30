@@ -39,6 +39,13 @@ def generate(output: str, seed: int = 42):
             {
                 "image_points": [[0, 0], [639, 0], [639, 479], [0, 479]],
                 "world_points": [[0, 0], [63.9, 0], [63.9, 47.9], [0, 47.9]],
+                "binding": {
+                    "camera_id": "camera-local",
+                    "width": 640,
+                    "height": 480,
+                    "image_transform": "decoded_native",
+                    "camera_pose_version": "synthetic-v1",
+                },
                 "uncertainty_m": 0.1,
                 "validation_image_points": [[100, 100], [500, 350]],
                 "validation_world_points": [[10, 10], [50, 35]],

@@ -72,7 +72,10 @@ def test_ground_plane_pipeline_exports_metric_units(tmp_path):
     )
     output = tmp_path / "calibrated"
     cfg = PipelineConfig(
-        detector="synthetic", synthetic=True, calibration=str(tmp_path / "data/calibration.json")
+        detector="synthetic",
+        synthetic=True,
+        calibration=str(tmp_path / "data/calibration.json"),
+        camera_pose_version="synthetic-v1",
     )
     report = run(str(tmp_path / "data/crossing.avi"), str(output), cfg)
     trajectories = pd.read_csv(output / "trajectories.csv")

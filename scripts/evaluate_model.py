@@ -7,8 +7,8 @@ from pathlib import Path
 
 import joblib
 
-from roadsense.evaluation.benchmark import event_table
-from roadsense.evaluation.metrics import early_warning, metrics
+from roadsense.evaluation.benchmark import event_table, operating_metrics, predict_available
+from roadsense.evaluation.metrics import early_warning
 from roadsense.evaluation.validation import load_observations, validate_holdout
 
 if __name__ == "__main__":
@@ -21,9 +21,9 @@ if __name__ == "__main__":
     model = joblib.load(a.model)  # Never load untrusted pickle/joblib artifacts.
     frame = load_observations(a.csv)
     validate_holdout(model, frame)
-    predictions = model.predict(frame)
+    predictions = predict_available(model, frame)
     events = event_table(frame, predictions)
-    result = metrics(events.label, events.score, a.threshold)
+    result = operating_metrics(events.label, events.score, a.threshold)
     result["observation_coverage"] = frame.attrs["observation_coverage"]
     result["early_warning"] = early_warning(frame, predictions, a.threshold)
     Path(a.output).parent.mkdir(parents=True, exist_ok=True)

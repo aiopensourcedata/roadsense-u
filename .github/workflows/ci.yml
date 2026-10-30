@@ -37,3 +37,46 @@ jobs:
       - run: python -m pip install --upgrade 'pip>=26.2,<27' 'setuptools>=84.1.0,<85'
       - run: python -m pip install -e '.[dashboard,review,audit]'
       - run: pip-audit --local --progress-spinner off
+
+  vision-integration:
+    runs-on: ubuntu-latest
+    env:
+      ROADSENSE_VISION_INTEGRATION: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python scripts/check_vision_environment.py --constraints /tmp/roadsense-vision-constraints.txt
+      - run: python -m pip install --extra-index-url https://download.pytorch.org/whl/cpu -c /tmp/roadsense-vision-constraints.txt -e '.[vision,dev]'
+      - run: python scripts/check_vision_environment.py
+      - run: python scripts/download_weights.py
+      - run: pytest tests/test_vision_integration.py -q
+
+  cloud-postgres-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: roadsense_ci
+          POSTGRES_USER: roadsense
+          POSTGRES_PASSWORD: ci-only-local-postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U roadsense -d roadsense_ci"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    env:
+      ROADSENSE_DATABASE_URL: postgresql+psycopg://roadsense:ci-only-local-postgres@127.0.0.1:5432/roadsense_ci
+      ROADSENSE_API_KEY: ci-only-ephemeral-key-at-least-24
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -e '.[dev]'
+      - run: pytest tests/test_enterprise.py -q
+      - run: python scripts/verify_delivery_postgres.py --output outputs/postgres-ci

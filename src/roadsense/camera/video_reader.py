@@ -18,6 +18,9 @@ class Frame:
     image: np.ndarray
     timestamp_source: str
     discontinuity: bool = False
+    raw_timestamp_s: float | None = None
+    acquired_monotonic_s: float | None = None
+    decode_duration_s: float = 0.0
 
 
 class VideoReader:
@@ -57,9 +60,14 @@ class VideoReader:
     def __iter__(self):
         start, previous, failures, index = time.monotonic(), -1.0, 0, 0
         discontinuity = False
+        previous_pts = None
+        offset = 0.0
+        timing_failed = False
         try:
             while True:
+                decode_start = time.monotonic()
                 ok, image = self.cap.read()
+                acquired = time.monotonic()
                 if not ok or image is None or image.size == 0:
                     if not self.live:
                         if index == 0:
@@ -84,20 +92,51 @@ class VideoReader:
                     continue
                 failures = 0
                 if self.live:
-                    timestamp, origin = time.monotonic() - start, "monotonic_arrival"
+                    timestamp, origin = acquired - start, "monotonic_arrival"
+                    pts = None
                 else:
                     pts = self.cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
-                    timestamp, origin = (
-                        (pts, "media_pts")
-                        if np.isfinite(pts) and pts > previous
-                        else (index / self.fps, "frame_rate_fallback")
-                    )
+                    usable = np.isfinite(pts) and pts >= 0
+                    increasing = usable and (previous_pts is None or pts > previous_pts)
+                    if increasing:
+                        if timing_failed:
+                            discontinuity = True
+                        timing_failed = False
+                        timestamp, origin = (
+                            pts + offset,
+                            "media_pts" if offset == 0 else "media_pts_new_epoch",
+                        )
+                    else:
+                        # A failed clock must never look like continuous measured time.
+                        # Even constant-zero backends are conservatively unavailable.
+                        discontinuity = True
+                        timing_failed = True
+                        timestamp, origin = (
+                            max(index / self.fps, previous + 1 / self.fps),
+                            "frame_rate_fallback",
+                        )
+                        if usable:
+                            offset = timestamp - pts
                     if timestamp <= previous:
+                        discontinuity = True
+                        timing_failed = True
                         timestamp, origin = previous + 1 / self.fps, "frame_rate_fallback"
+                        if usable:
+                            offset = timestamp - pts
+                    previous_pts = pts if usable else None
                 # Decode sequentially rather than seek: variable-rate sources can
                 # otherwise return a different frame or timestamp than requested.
                 if index >= self.start_frame:
-                    yield Frame(index, timestamp, image, origin, discontinuity)
+                    yield Frame(
+                        index,
+                        timestamp,
+                        image,
+                        origin,
+                        discontinuity,
+                        float(pts) if pts is not None and np.isfinite(pts) else None,
+                        acquired,
+                        acquired - decode_start,
+                    )
                 previous, index, discontinuity = timestamp, index + 1, False
         finally:
             self.cap.release()

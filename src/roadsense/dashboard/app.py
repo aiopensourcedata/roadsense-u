@@ -159,6 +159,13 @@ with evidence:
             ),
         )
         event = events[index]
+        st.caption(
+            f"Timestamp origin: {event.get('timestamp_origin', 'legacy_unknown')} · server ingestion: {event.get('ingested_at') or 'unavailable'}"
+        )
+        if event.get("timestamp_origin") != "provided_capture_time":
+            st.info(
+                "Original capture time is unknown. The timeline uses ingestion-origin media time or a legacy timestamp."
+            )
         features = event["features"]
         unit = features["units"]
         columns = st.columns(4)
@@ -252,6 +259,11 @@ with artifacts:
     if runs:
         selected = st.selectbox("Processed run", runs, format_func=str)
         report = json.loads((selected / "report.json").read_text())
+        st.caption(f"Run status: {report.get('status', 'legacy_unspecified')}")
+        if report.get("status") in {"interrupted", "failed"}:
+            st.warning(
+                "Partial run: future horizons may be censored; this is not completed experimental evidence."
+            )
         if report.get("synthetic"):
             st.info("SYNTHETIC RUN · Generated input, not real-world traffic validation.")
         columns = st.columns(4)

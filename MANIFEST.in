@@ -11,6 +11,7 @@ prune .git
 prune .aws
 prune .agents
 prune .codex
+prune .research
 prune data
 prune outputs
 global-exclude *.py[cod] *.pt *.onnx *.joblib *.db *.pem *.key
@@ -23,3 +24,5 @@ include .streamlit/config.toml
 include docs/assets/overview.png docs/assets/event-evidence.png docs/assets/location-analytics.png
 include docs/assets/evaluation.png docs/assets/live-preview.png
 recursive-include docs/assets *.json
+
+include docker-compose.enterprise.yml configs/cloud/Caddyfile.local configs/cloud/Caddyfile.remote

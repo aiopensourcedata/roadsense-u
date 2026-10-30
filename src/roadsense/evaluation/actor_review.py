@@ -18,6 +18,45 @@ def file_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def bind_prediction_frames(
+    reference_manifest: Path, candidate_manifest: Path, predictions_path: Path
+) -> dict:
+    """Rebind predictions only when all frame identities/geometry match exactly.
+
+    Image paths are presentation metadata. Source SHA, index, timestamp, dimensions
+    and every other frame attribute must match. No labels are copied or inferred.
+    """
+    reference = json.loads(reference_manifest.read_text())
+    candidate = json.loads(candidate_manifest.read_text())
+    required = {"frame_key", "source_sha256", "frame_index", "timestamp_s", "width", "height", "clip_index"}
+
+    def identities(manifest):
+        frames = manifest["frames"]
+        if not all(required <= f.keys() for f in frames) or len({f["frame_key"] for f in frames}) != len(
+            frames
+        ):
+            raise ValueError("Frame identities are missing or duplicated")
+        return {f["frame_key"]: {k: v for k, v in f.items() if k != "image"} for f in frames}
+
+    if reference.get("purpose") != candidate.get("purpose") or identities(reference) != identities(candidate):
+        raise ValueError("Candidate frames differ from the reference source identities or geometry")
+    predictions = json.loads(predictions_path.read_text())
+    if predictions["manifest_sha256"] != file_sha256(candidate_manifest):
+        raise ValueError("Candidate predictions are not bound to their manifest")
+    expected = set(identities(reference))
+    if any(set(stage) != expected for stage in predictions["stages"].values()):
+        raise ValueError("Candidate prediction frame coverage differs")
+    return {
+        "manifest_sha256": file_sha256(reference_manifest),
+        "stages": predictions["stages"],
+        "rebinding_provenance": {
+            "candidate_manifest_sha256": file_sha256(candidate_manifest),
+            "candidate_predictions_sha256": file_sha256(predictions_path),
+            "matched_on": "all frame attributes except image path; no labels changed",
+        },
+    }
+
+
 class ActorBox(BaseModel):
     """Visible-extent normalized box; actor ID is local to one source clip."""
 
@@ -150,7 +189,9 @@ def match_boxes(actors: list[ActorBox], predictions: list[dict], iou_threshold: 
     }
 
 
-def evaluate_actor_review(bundle: Path, review_path: Path, allow_first_pass: bool = False) -> dict:
+def evaluate_actor_review(
+    bundle: Path, review_path: Path, allow_first_pass: bool = False, predictions_path: Path | None = None
+) -> dict:
     """Fail closed on blank/partial/mismatched labels; report declared provenance."""
     manifest_path = bundle / "manifest.json"
     manifest = json.loads(manifest_path.read_text())
@@ -162,7 +203,7 @@ def evaluate_actor_review(bundle: Path, review_path: Path, allow_first_pass: boo
     expected = {f["frame_key"]: f for f in manifest["frames"]}
     if set(expected) != {f.frame_key for f in review.frames} or not all(f.reviewed for f in review.frames):
         raise ValueError("Every manifest frame must be explicitly reviewed, including empty frames")
-    predictions_path = bundle / "predictions.json"
+    predictions_path = predictions_path if predictions_path is not None else bundle / "predictions.json"
     predictions = json.loads(predictions_path.read_text())
     if predictions["manifest_sha256"] != review.manifest_sha256:
         raise ValueError("Predictions belong to a different manifest")

@@ -27,6 +27,7 @@ def main(default_source=None):
     parser.add_argument("--preview-port", type=int, default=8765)
     parser.add_argument("--max-frames", type=int)
     parser.add_argument("--inference-size", type=int, help="YOLO size, multiple of 32 (default 640)")
+    parser.add_argument("--tiled", action="store_true", help="Experimental full-frame plus overlapping crops")
     parser.add_argument(
         "--start-frame", type=int, help="Sequentially skip source frames; preserve original media timestamps"
     )
@@ -45,12 +46,14 @@ def main(default_source=None):
         cfg["max_frames"] = args.max_frames
     if args.inference_size is not None:
         cfg["inference_size"] = args.inference_size
+    if args.tiled:
+        cfg["tiling"]["enabled"] = True
     if args.start_frame is not None:
         cfg["start_frame"] = args.start_frame
     client = None
     if args.submit:
         settings = Settings()
-        client = EventClient(settings.api_url, settings.api_key)
+        client = EventClient(settings.api_url, settings.api_key, ca_file=settings.api_ca_file)
     try:
         with LivePreview(args.preview_port) if args.preview else nullcontext() as preview:
             if preview is not None:

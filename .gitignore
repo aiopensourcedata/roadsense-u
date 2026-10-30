@@ -19,6 +19,7 @@ outputs/*
 .agents/
 .aws/
 .codex/
+.research/
 .env.*
 !.env.example
 *.pem

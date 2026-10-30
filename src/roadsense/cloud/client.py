@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Metadata-only HTTP transport with bounded retry, timeouts and idempotent UUIDs."""
 
+import ssl
 import time
 from urllib.parse import urlparse
 
@@ -10,7 +11,9 @@ from roadsense.cloud.schemas import TrafficEvent
 
 
 class EventClient:
-    def __init__(self, base_url: str, api_key: str, attempts: int = 3, transport=None):
+    def __init__(
+        self, base_url: str, api_key: str, attempts: int = 3, transport=None, ca_file: str | None = None
+    ):
         if not 1 <= attempts <= 10:
             raise ValueError("Request attempts must be between 1 and 10")
         parsed = urlparse(base_url)
@@ -22,6 +25,7 @@ class EventClient:
             raise ValueError("Remote API connections require HTTPS")
         self.http = httpx.Client(
             trust_env=False,
+            verify=ssl.create_default_context(cafile=ca_file) if ca_file else True,
             base_url=base_url,
             headers={"X-API-Key": api_key},
             timeout=5,

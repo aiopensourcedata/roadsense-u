@@ -10,6 +10,7 @@ from roadsense.evaluation.actor_review import (
     ActorBox,
     ActorReview,
     FrameReview,
+    bind_prediction_frames,
     evaluate_actor_review,
     file_sha256,
     match_boxes,
@@ -19,6 +20,35 @@ from roadsense.evaluation.actor_review_page import render_actor_page
 
 def actor(tid, box, **kwargs):
     return ActorBox(actor_id=tid, class_name="car", bbox=box, **kwargs)
+
+
+def test_prediction_rebinding_requires_exact_source_frames_but_not_image_paths(tmp_path):
+    frame = {
+        "frame_key": "f",
+        "source_sha256": "0" * 64,
+        "frame_index": 1,
+        "timestamp_s": 0.5,
+        "width": 100,
+        "height": 100,
+        "clip_index": 0,
+        "image": "frames/f.jpg",
+    }
+    reference, candidate, predictions = [
+        tmp_path / name for name in ["reference.json", "candidate.json", "pred.json"]
+    ]
+    reference.write_text(json.dumps({"purpose": "synthetic-test", "frames": [frame]}))
+    frame["image"] = None
+    candidate.write_text(json.dumps({"purpose": "synthetic-test", "frames": [frame]}))
+    predictions.write_text(
+        json.dumps({"manifest_sha256": file_sha256(candidate), "stages": {"raw": {"f": []}}})
+    )
+    result = bind_prediction_frames(reference, candidate, predictions)
+    assert result["manifest_sha256"] == file_sha256(reference)
+    assert result["stages"] == {"raw": {"f": []}}
+    frame["timestamp_s"] = 0.6
+    candidate.write_text(json.dumps({"purpose": "synthetic-test", "frames": [frame]}))
+    with pytest.raises(ValueError, match="source identities"):
+        bind_prediction_frames(reference, candidate, predictions)
 
 
 def test_box_matching_prefers_two_valid_matches_over_one_higher_iou():
@@ -103,6 +133,26 @@ def test_evaluation_requires_complete_bound_review_and_preserves_provenance(tmp_
     path.write_text(json.dumps(review))
     with pytest.raises(ValueError, match="different manifest"):
         evaluate_actor_review(tmp_path, path, allow_first_pass=True)
+
+
+def test_prediction_override_reuses_exact_review_and_rejects_different_manifest(tmp_path):
+    review = bundle(tmp_path)
+    review_path = tmp_path / "review.json"
+    review_path.write_text(json.dumps(review))
+    base = tmp_path / "predictions.json"
+    original = base.read_bytes()
+    candidate = json.loads(original)
+    candidate["stages"]["candidate"] = {"f1": [], "f2": []}
+    extra = tmp_path / "candidate.json"
+    extra.write_text(json.dumps(candidate))
+    result = evaluate_actor_review(tmp_path, review_path, True, extra)
+    assert result["stages"]["raw_640"]["recall"] == 1
+    assert result["stages"]["candidate"]["recall"] == 0
+    assert base.read_bytes() == original
+    candidate["manifest_sha256"] = "0" * 64
+    extra.write_text(json.dumps(candidate))
+    with pytest.raises(ValueError, match="Predictions belong"):
+        evaluate_actor_review(tmp_path, review_path, True, extra)
 
 
 def test_adjudication_cannot_be_claimed_by_one_reviewer_or_assistant_screen(tmp_path):

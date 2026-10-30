@@ -66,6 +66,8 @@ Matching is class-aware at IoU ≥ 0.5, maximizing valid match count before summ
 
 The report compares detector-only and tracked-box precision/recall on the **same sampled frames** and retains per-frame matches/track IDs for investigation. These are correlated development observations, not COCO AP, continuous MOT accuracy, ID-switch counts, collision prediction accuracy or camera-held-out performance. The preceding context supports manual continuity review but does not provide dense tracking truth. Actual colliding-participant labels require separate temporal/outcome review; they cannot be inferred from these boxes alone.
 
+Additional candidates can use `evaluate_actor_review.py --predictions /path/to/comparison.json` with the same completed review file. The [perception comparison](TILED_PERCEPTION.md) supplies eight original/tiled/larger-checkpoint stages over the same 29 source-bound frames. Different image-file paths are accepted for prediction rebinding only after exact source hash, frame index, timestamp, geometry and other frame metadata checks. Labels and the blind editor are unchanged. The new model outputs are not additional ground truth.
+
 ## Privacy and evidence
 
 The executed bundle explicitly retained 29 local JPEGs (approximately 9 MB together with metadata), plus a private browser screenshot. They remain ignored by Git. Do not redistribute source-derived images without checking dataset terms, rights and privacy. Delete sampled images and review screenshots once their justified review purpose ends; keep only necessary de-identified measurements/annotations. Ordinary pipeline recording/upload defaults remain disabled. No API event submissions, raw-video uploads or public screenshot changes were made in this step.

@@ -43,7 +43,12 @@ def prepare(
         raise ValueError("Download manifest changed")
     downloads = {r["filename"]: r for r in json.loads(downloads_path.read_text())}
     cfg = PipelineConfig.model_validate(plan["base_config"])
-    if cfg.synthetic or cfg.detector != "yolo" or file_sha256(Path(cfg.weights)) != plan["weights_sha256"]:
+    if (
+        cfg.synthetic
+        or cfg.detector != "yolo"
+        or cfg.tiling.enabled
+        or file_sha256(Path(cfg.weights)) != plan["weights_sha256"]
+    ):
         raise ValueError("Requires original real detector weights")
     frames, sources, snapshots, references = {}, {}, [], {}
     for index, row in zip(plan["indices"], plan["selected"], strict=True):
@@ -122,7 +127,7 @@ def prepare(
                 or report["detector_injected_for_test"]
                 or any(
                     getattr(actual, field) != getattr(cfg, field)
-                    for field in ("weights", "confidence", "device", "detector", "start_frame")
+                    for field in ("weights", "confidence", "device", "detector", "start_frame", "tiling")
                 )
             ):
                 raise ValueError("Invalid inference provenance")

@@ -59,6 +59,12 @@ The synthetic demo uses a color-component detector and gated tracker designed fo
 
 The initializer creates private local credentials in `.env` and refuses to overwrite an existing file. Choose a new output directory for each run. Stop services with `docker compose down`; the database volume persists.
 
+### Local cloud and enterprise lab
+
+A separate local deployment adds camera-scoped service credentials, verified HTTPS, audit records, migrations, scheduled retention and backup/restore verification. Its durable outbox retries transient outages without blocking the frame loop. [Setup and experiments](docs/CLOUD_ENTERPRISE.md).
+
+This remains a single-organization research alpha; tenant isolation, SSO, remote availability and traffic-warning accuracy are not established.
+
 ### Run on your own video
 
 Install the optional detector dependencies and download the pinned model:
@@ -99,6 +105,10 @@ Recording requires `--save-video`. Preview frame rate depends on inference throu
 
 For small or distant objects, try `--inference-size 960` with either video or webcam commands. The default remains 640; larger sizes use more compute and do not guarantee better tracking or warnings. Bounding boxes and pixel measurements stay in the original image coordinates. Sizes must be multiples of 32 between 320 and 1920.
 
+An experimental `--tiled` option combines the full image with overlapping crops before one ByteTrack update. It uses extra inference calls and can introduce duplicate/false detections; it stays disabled by default. [Behavior, controls and paired evaluation](docs/TILED_PERCEPTION.md).
+
+An optional larger-checkpoint profile is available with `--config configs/detector_capacity.yaml` after the explicit `python scripts/download_weights.py --model yolo11s` download. Development comparisons found an extra usable negative horizon, with no positive-availability gain; neither option is a validated accuracy improvement.
+
 ## Event measurements
 
 The **Event evidence** tab shows the values behind each alert, including closest approach, time to closest approach, closing speed, track quality, and residual-based uncertainty.
@@ -122,6 +132,8 @@ Measurements remain in pixels unless a valid calibration is supplied. TTC is una
 | `events.jsonl` | Emitted events with UUIDs for idempotent replay. |
 | `report.json` | Configuration, counts, timing, resource use, and attempted metadata-body bytes. |
 | `annotated.mp4` | Recorded only with `--save-video`. |
+
+Cloud submission uses a bounded durable metadata outbox. Interrupted runs finalize with explicit status. See [timing, replay, calibration binding and provenance](docs/RELIABILITY_AND_PROVENANCE.md).
 
 If submission fails, replay retained metadata:
 

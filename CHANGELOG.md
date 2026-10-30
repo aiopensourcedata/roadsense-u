@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Recoverable durable outbox with persisted backoff, permanent-rejection state and queue-age/retry measurements.
+- Single-organization camera-scoped ingest/read/admin credentials, mutation audit records and protected operational metrics.
+- Explicit schema revisions, scheduled central retention and bounded metadata backup/restore tools.
+- Isolated local PostgreSQL/TLS/dashboard deployment and reproducible synthetic delivery/fault experiments.
+
+- Explicit clock-reset epochs/raw PTS, atomic interrupted/failed reports and dashboard status labels.
+- Durable bounded delivery outbox with nonblocking HTTP retries, overflow reporting and UUID-preserving recovery CLI.
+- Hash-bound run/event provenance, separate server ingestion time, authenticated run retrieval and geometry-bound calibration.
+- Pinned real vision boundary job, calibration distribution diagnostics and media-free cached-result packaging/reproduction tools.
+
+- Reject motion discontinuities against the previous fit before updating; reset suspect tracks with explicit pixel/metre tolerances.
+- General benchmark and held-out CLI share runtime eligibility and preserve unavailable positives in operating recall.
+- Scene evaluation rejects contradictory availability/scores and inconsistent source/cohort metadata.
+
+- Opt-in tiled inference with original-coordinate merging, one shared ByteTrack state, model-call diagnostics and a frozen development comparison.
+- Actor evaluation can compare additional prediction stages on the same immutable review manifest without changing labels or copying images.
 - Offline actor-box annotation page, explicit reviewer/adjudication provenance, class-aware sampled-box evaluation and independent raw-detector diagnostics.
 - Configurable YOLO inference resolution, original-coordinate pair projection evidence and local dashboard geometry inspection.
 - Paired development-only detector-resolution runner and descriptive perception/abstention diagnostics.

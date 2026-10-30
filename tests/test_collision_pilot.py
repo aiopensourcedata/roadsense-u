@@ -216,3 +216,34 @@ def test_missing_validation_negative_does_not_invent_a_budget_threshold(tmp_path
     assert "calibrated_logistic_validation_threshold" in result["unavailable_baselines"]
     assert "calibrated_logistic_validation_threshold" not in result["baselines"]
     assert (tmp_path / "missing-val-negatives/scene-baseline.joblib").exists()
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "contradictory_score",
+        "string_boolean",
+        "blank_source",
+        "clip_mapping",
+        "cohort_partition",
+        "cohort_source",
+    ],
+)
+def test_scene_artifact_mutations_fail_closed(tmp_path, mutation):
+    frame, cohort = scene_table()
+    if mutation == "contradictory_score":
+        frame.loc[0, "scoreable"] = False
+        frame.loc[0, "rule_score"] = 0.99
+    elif mutation == "string_boolean":
+        frame["scoreable"] = frame.scoreable.astype(str)
+    elif mutation == "blank_source":
+        frame.loc[0, "source_id"] = " "
+    elif mutation == "clip_mapping":
+        frame.loc[0, "source_id"] = "other-source"
+    elif mutation == "cohort_partition":
+        cohort[0]["partition"] = "test"
+    else:
+        cohort[0]["source_id"] = "wrong-source"
+    with pytest.raises(ValueError):
+        run_scene_benchmark(frame, cohort, tmp_path / mutation)
+    assert not (tmp_path / mutation).exists()

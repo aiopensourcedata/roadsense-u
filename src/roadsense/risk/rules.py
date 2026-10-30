@@ -18,12 +18,18 @@ class RiskEstimate:
 
 
 def estimate(
-    features: PairFeatures, horizon_s: float = 3, proximity: float = 60, min_quality: float = 0.5
+    features: PairFeatures,
+    horizon_s: float = 3,
+    proximity: float = 60,
+    min_quality: float = 0.5,
+    identity_ambiguous: bool = False,
 ) -> RiskEstimate:
     if not math.isfinite(horizon_s) or not math.isfinite(proximity) or min(horizon_s, proximity) <= 0:
         raise ValueError("Risk horizon and proximity must be positive and finite")
     if not 0 <= min_quality <= 1:
         raise ValueError("Minimum quality must lie in [0,1]")
+    if identity_ambiguous:
+        return RiskEstimate(None, True, ["ambiguous_pair_identity"])
     reason = abstention_reason(features, min_quality, proximity)
     if reason:
         return RiskEstimate(None, True, [reason])

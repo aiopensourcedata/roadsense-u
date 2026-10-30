@@ -80,3 +80,83 @@ def test_data_contract_rejects_mixed_provenance_and_metric_pooling(tmp_path):
     assert loaded.event_id.iloc[0] == "001"
     with pytest.raises(ValueError, match="lacks split provenance"):
         validate_holdout(SimpleNamespace(), loaded)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {},
+        {"quality": 0.1},
+        {"measurement_uncertainty": 61},
+        {"identity_ambiguous": True},
+        {"time_to_cpa_s": 0},
+        {"closing_speed": -1},
+    ],
+)
+def test_rule_benchmark_matches_runtime_rejections(change):
+    from dataclasses import replace
+
+    import numpy as np
+    from test_features import state
+
+    from roadsense.evaluation.benchmark import rule_scores
+    from roadsense.motion.features import pair_features
+    from roadsense.risk.rules import estimate
+
+    features = pair_features(state(1, [-5, 0], [5, 0]), state(2, [0, -5], [0, 5]))
+    identity = change.get("identity_ambiguous", False)
+    features = replace(features, **{k: v for k, v in change.items() if k != "identity_ambiguous"})
+    row = features.dict() | {"identity_ambiguous": identity}
+    actual = rule_scores(pd.DataFrame([row]))[0]
+    expected = estimate(features, identity_ambiguous=identity)
+    if expected.abstained:
+        assert np.isnan(actual)
+    else:
+        assert actual == pytest.approx(expected.score)
+
+
+def test_missing_perception_retained_in_operating_denominator(tmp_path):
+    import numpy as np
+
+    from roadsense.evaluation.benchmark import operating_metrics, rule_scores
+    from roadsense.evaluation.validation import load_observations
+
+    frame = pd.DataFrame(
+        [
+            dict(
+                event_id="a",
+                clip_id="a",
+                location_id="x",
+                prediction_time_s=1,
+                event_time_s=2,
+                label=1,
+                synthetic=True,
+                scoreable=False,
+                cpa_distance=np.nan,
+                time_to_cpa_s=np.nan,
+                closing_speed=np.nan,
+                quality=np.nan,
+            ),
+            dict(
+                event_id="b",
+                clip_id="b",
+                location_id="y",
+                prediction_time_s=1,
+                event_time_s=2,
+                label=1,
+                synthetic=True,
+                scoreable=True,
+                cpa_distance=0,
+                time_to_cpa_s=1,
+                closing_speed=1,
+                quality=0.9,
+            ),
+        ]
+    )
+    path = tmp_path / "missing.csv"
+    frame.to_csv(path, index=False)
+    loaded = load_observations(str(path))
+    result = operating_metrics(loaded.label, rule_scores(loaded), 0.45, False)
+    assert result["n_events"] == 2
+    assert result["recall"] == 0.5
+    assert result["abstained_positive_events"] == 1

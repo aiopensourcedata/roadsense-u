@@ -13,7 +13,7 @@ if __name__ == "__main__":
     p.add_argument("events_jsonl")
     a = p.parse_args()
     cfg = Settings()
-    client = EventClient(cfg.api_url, cfg.api_key)
+    client = EventClient(cfg.api_url, cfg.api_key, ca_file=cfg.api_ca_file)
     try:
         for line in Path(a.events_jsonl).read_text().splitlines():
             client.submit(TrafficEvent.model_validate_json(line))

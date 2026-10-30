@@ -4,7 +4,9 @@ RoadSense-U is usable research software. The central hypothesis and novelty rema
 
 ## Current evidence
 
-The latest actor-review workflow has also prepared 29 score-blind review frames and separate raw-detector/track diagnostics; annotations remain blank, so actor accuracy is unmeasured. The latest full automated suite passed 96 tests. See [actor review](ACTOR_REVIEW.md).
+The latest actor-review workflow has also prepared 29 score-blind review frames and separate raw-detector/track diagnostics; annotations remain blank, so actor accuracy is unmeasured. The latest full automated suite passed 105 tests. See [actor review](ACTOR_REVIEW.md).
+
+The controlled tiled/larger-checkpoint comparison still has only 1/4 usable positive development horizons for every profile. YOLO11s raises total availability from 1/10 to 2/10 by adding a negative horizon. Tiling leaves availability unchanged and produces extra emissions, including two post-onset records. All eight raw/tracked candidate stages are bound to the same 29 review frames; no improved actor or warning accuracy is established. [Protocol and results](TILED_PERCEPTION.md).
 
 Latest development diagnostic: 1,038 actual YOLO/ByteTrack frames across four inspected training clips at 640/960 inference size. Both resolutions score one of ten eligible snapshots; nine lack a tracked pair. Explicit 640 reproduces all 1,476 cached pair records and decisions. New local pair-geometry evidence is inspectable in the dashboard, but participant correctness is still unverified. See [perception development results](PERCEPTION_DEVELOPMENT.md). No risk-policy improvement or new held-out performance is claimed.
 
@@ -86,3 +88,8 @@ The subsequent [four-recording Bellevue evaluation](REAL_VIDEO_RESULTS.md) verif
 5. Reproduce the closest applicable competing method before a novelty/superiority claim. Negative results and engineering contributions remain valid outcomes.
 
 Local detailed results live under ignored `outputs/research-readiness/`. Synthetic model scores demonstrate runner functionality only. No real-world accuracy, reliable crash prediction, cost saving or certified warning capability has been established.
+
+
+## 28 October — correctness and lifecycle remediation
+
+See [measurement correctness](MEASUREMENT_CORRECTNESS.md) and [lifecycle/provenance](RELIABILITY_AND_PROVENANCE.md). Historical scene tables remain cached results from their original implementation. The corrected motion/timing paths require a new inference evidence version before comparison; cached report reproduction does not rerun perception. Independent actor/site/motion references and normal camera-hours remain missing. Larger detector/tiling candidates are not promoted.

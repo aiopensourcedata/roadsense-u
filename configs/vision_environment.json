@@ -1,0 +1,19 @@
+{
+  "python": "3.12",
+  "scope": "Exact tested local vision boundary; CPU wheels use PyTorch CPU index",
+  "packages": {
+    "ultralytics-opencv-headless": "8.4.187",
+    "torch": "2.14.1+cpu",
+    "torchvision": "0.29.1+cpu",
+    "lap": "0.5.13",
+    "numpy": "2.5.4",
+    "opencv-python-headless": "4.14.0.94",
+    "scipy": "1.18.1",
+    "pandas": "3.1.0",
+    "scikit-learn": "1.9.1",
+    "pydantic": "2.14.1",
+    "fastapi": "0.162.0",
+    "sqlalchemy": "2.1.6",
+    "httpx": "0.28.1"
+  }
+}

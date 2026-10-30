@@ -14,6 +14,42 @@ from roadsense.risk.classical_model import FEATURES, ClassicalModel
 
 def validate_scene_observations(frame: pd.DataFrame) -> None:
     """Reject cross-partition source reuse, missing outcomes and post-event leakage."""
+    required = {
+        "partition",
+        "source_id",
+        "clip_id",
+        "nominal_time_s",
+        "prediction_time_s",
+        "published_accident_time_s",
+        "label",
+        "future_observation_complete",
+        "scoreable",
+        "units",
+        "rule_score",
+        *FEATURES,
+    }
+    if not required <= set(frame.columns):
+        raise ValueError("Missing required scene observation columns")
+    for key in ("source_id", "clip_id", "partition"):
+        if (
+            not frame[key]
+            .map(lambda value: isinstance(value, str) and bool(value) and value == value.strip())
+            .all()
+        ):
+            raise ValueError(f"Nonempty canonical {key} required")
+    for key in ("scoreable", "future_observation_complete"):
+        if not frame[key].map(lambda value: isinstance(value, (bool, np.bool_))).all():
+            raise ValueError(f"{key} must contain actual boolean values")
+    if (
+        frame.groupby("clip_id").source_id.nunique().max() != 1
+        or frame.groupby("clip_id").partition.nunique().max() != 1
+    ):
+        raise ValueError("Each clip must map to one source and partition")
+    timing = frame[["nominal_time_s", "prediction_time_s", "published_accident_time_s"]].to_numpy(dtype=float)
+    if not np.isfinite(timing).all() or (timing < 0).any():
+        raise ValueError("Scene timestamps must be finite and nonnegative")
+    if frame.groupby("clip_id").published_accident_time_s.nunique().max() != 1:
+        raise ValueError("One published onset per clip is required")
     if frame.empty or set(frame.partition) != {"train", "calibration", "validation", "test"}:
         raise ValueError("Four nonempty frozen partitions are required")
     if frame.groupby("source_id").partition.nunique().max() != 1:
@@ -27,6 +63,8 @@ def validate_scene_observations(frame: pd.DataFrame) -> None:
     expected = (frame.published_accident_time_s <= frame.prediction_time_s + 3).astype(int)
     if not np.array_equal(expected, frame.label):
         raise ValueError("Target disagrees with published onset and three-second horizon")
+    if frame.loc[~frame.scoreable, "rule_score"].notna().any():
+        raise ValueError("Unavailable observations must not contain a rule score")
     accepted = frame[frame.scoreable]
     if not accepted.units.eq("px").all():
         raise ValueError("Scene baseline requires pixel units")
@@ -51,10 +89,34 @@ def run_scene_benchmark(
     if output.exists():
         raise ValueError("Output exists; choose a fresh experiment directory")
     validate_scene_observations(frame)
+    mapping = {}
+    source_partitions = {}
+    for row in cohort:
+        clip, partition = row.get("filename"), row.get("partition")
+        if not isinstance(clip, str) or not clip or clip != clip.strip() or clip in mapping:
+            raise ValueError("Cohort requires unique canonical clip IDs")
+        if partition not in {"train", "calibration", "validation", "test"}:
+            raise ValueError("Invalid cohort partition")
+        source = row.get("source_id")
+        if source is not None:
+            if not isinstance(source, str) or not source or source != source.strip():
+                raise ValueError("Invalid cohort source ID")
+            if source in source_partitions and source_partitions[source] != partition:
+                raise ValueError("Cohort source crosses partitions")
+            source_partitions[source] = partition
+        mapping[clip] = row
+    for row in frame[["clip_id", "source_id", "partition"]].drop_duplicates().to_dict("records"):
+        declared = mapping.get(row["clip_id"])
+        if (
+            declared is None
+            or declared["partition"] != row["partition"]
+            or declared.get("source_id", row["source_id"]) != row["source_id"]
+        ):
+            raise ValueError("Snapshot source/partition disagrees with cohort")
     parts = {name: frame[frame.partition == name].reset_index(drop=True) for name in frame.partition.unique()}
     test, validation = parts["test"], parts["validation"]
     cohort_ids = [row["filename"] for row in cohort if row["partition"] == "test"]
-    rules = test.rule_score.to_numpy(dtype=float)
+    rules = np.where(test.scoreable.to_numpy(dtype=bool), test.rule_score.to_numpy(dtype=float), np.nan)
     predictions = {"rules_fixed_0.45": (rules, 0.45)}
     probabilities = {"rules_fixed_0.45": False}
     # Explicit no-feature reference, not a replacement for missing detector output.

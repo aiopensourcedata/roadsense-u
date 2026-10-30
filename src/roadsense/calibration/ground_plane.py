@@ -19,9 +19,11 @@ class GroundPlane:
         validation_image_points,
         validation_world_points,
         max_error_m: float = 1.0,
+        binding: dict | None = None,
     ):
         if not np.isfinite(max_error_m) or max_error_m <= 0:
             raise ValueError("Calibration validation tolerance must be positive and finite")
+        self.binding = binding
         image, world = validate_points(image_points, world_points)
         if not np.isfinite(uncertainty_m) or uncertainty_m <= 0:
             raise ValueError("A positive declared calibration uncertainty in meters is required")
@@ -43,6 +45,20 @@ class GroundPlane:
         if not np.isfinite(self.validation_rmse_m) or self.validation_rmse_m > max_error_m:
             raise ValueError("Calibration fails independent validation tolerance")
         self.uncertainty_m = max(uncertainty_m, self.validation_rmse_m)
+
+    def validate_binding(self, camera_id: str, width: int, height: int, pose_version: str):
+        """Fail closed before metric measurements on mismatched acquisition geometry."""
+        expected = {
+            "camera_id": camera_id,
+            "width": width,
+            "height": height,
+            "image_transform": "decoded_native",
+            "camera_pose_version": pose_version,
+        }
+        if pose_version == "unspecified" or self.binding != expected:
+            raise ValueError(
+                "Calibration requires matching camera, native resolution, transform and explicit pose version"
+            )
 
     def project(self, point: np.ndarray) -> np.ndarray | None:
         point = np.asarray(point, dtype=float)
